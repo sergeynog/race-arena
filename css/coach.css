@@ -1,0 +1,426 @@
+/* ============================================================
+   RACE ARENA — coach.css
+   AI Coach tab: controls, response, zone analysis cards
+   ============================================================ */
+
+/* ── COACHING LAYOUT ─────────────────────────────────────── */
+.coaching-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── CONTROLS BAR ────────────────────────────────────────── */
+.coaching-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(45deg,  rgba(255,255,255,0.016) 25%, transparent 25%,
+      transparent 75%, rgba(255,255,255,0.016) 75%),
+    linear-gradient(-45deg, rgba(255,255,255,0.016) 25%, transparent 25%,
+      transparent 75%, rgba(255,255,255,0.016) 75%);
+  background-size: 4px 4px;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(232,76,30,0.15), 0 2px 12px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.cc-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cc-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+}
+.cc-value {
+  font-size: 13.5px;
+  font-family: var(--font-mono);
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-divider { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+.cc-hint { font-size: 11px; color: var(--muted2); letter-spacing: 0.2px; }
+
+/* ── COACHING MAIN SCROLL AREA ───────────────────────────── */
+.coaching-main {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.coaching-main::-webkit-scrollbar { width: 4px; }
+.coaching-main::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── EMPTY / LOADING STATES ──────────────────────────────── */
+.coaching-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+  text-align: center;
+  gap: 12px;
+}
+.coaching-empty-icon { font-size: 52px; opacity: 0.3; }
+.coaching-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  padding: 20px;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── AI RESPONSE CARD ────────────────────────────────────── */
+.coaching-response {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  margin-bottom: 20px;
+  line-height: 1.8;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.coaching-response h1,
+.coaching-response h2 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg);
+  margin-top: 22px;
+  margin-bottom: 8px;
+  letter-spacing: 0;
+}
+.coaching-response h2:first-child { margin-top: 0; }
+.coaching-response h3 {
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--yellow);
+  margin-top: 16px;
+  margin-bottom: 6px;
+  letter-spacing: 0.2px;
+}
+.coaching-response p { color: var(--text); margin-bottom: 10px; font-size: 14.5px; line-height: 1.8; }
+.coaching-response ul { margin-left: 20px; margin-bottom: 10px; }
+.coaching-response li { color: var(--text); margin-bottom: 6px; font-size: 14.5px; line-height: 1.7; }
+.coaching-response strong { color: var(--fg); }
+.coaching-response em { color: var(--orange); font-style: normal; }
+.coaching-response code {
+  background: var(--card2);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--green);
+}
+
+/* ── ZONE ANALYSIS SECTION ───────────────────────────────── */
+.zone-analysis-section { margin-top: 8px; }
+.zone-analysis-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.zone-analysis-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cyan);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.zone-skipped-note { font-size: 10px; color: var(--muted2); font-style: italic; }
+
+.zone-legend-pills { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.zone-legend-pill { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); }
+.zone-legend-line  { width: 18px; height: 3px; border-radius: 2px; }
+.zone-legend-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.zone-legend-diamond { width: 8px; height: 8px; background: var(--green); transform: rotate(45deg); flex-shrink: 0; }
+.zone-legend-square  { width: 8px; height: 8px; background: #ff4444; flex-shrink: 0; }
+
+/* ── CORNER CARDS ────────────────────────────────────────── */
+.zone-cards { display: flex; flex-direction: column; gap: 20px; }
+.zone-card {
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.zone-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid var(--border);
+}
+.zone-card-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.zone-card-dist { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+
+.zone-card-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.zone-panel { position: relative; }
+.zone-panel + .zone-panel { border-left: 1px solid var(--border); }
+.zone-panel-label {
+  position: absolute;
+  top: 7px; left: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  pointer-events: none;
+  z-index: 1;
+}
+.zone-panel canvas { display: block; width: 100%; height: auto; }
+
+.chart-legend-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 6px 10px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-wrap: wrap;
+}
+.chart-leg-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 600;
+  color: rgba(255,255,255,0.8);
+  white-space: nowrap;
+}
+.chart-leg-line {
+  display: inline-block; width: 22px; height: 2px; border-radius: 1px;
+}
+.chart-leg-dashed {
+  background: transparent !important;
+  border-top: 2px dashed;
+  height: 0;
+  border-radius: 0;
+}
+
+/* ── BOTTOM STATS + COACHING TIP ─────────────────────────── */
+.zone-card-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-top: 1px solid var(--border);
+}
+.zone-stats-col {
+  padding: 10px 14px 12px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.zone-coaching-col { padding: 10px 14px 12px; }
+
+.zone-stat { font-size: 13.5px; color: rgba(255,255,255,0.8); line-height: 1.7; }
+.zs-label { color: var(--muted2); font-weight: 600; }
+.zs-ref   { color: #ddd; }
+.zs-comp  { color: var(--cyan); }
+.zs-good  { color: var(--green); font-weight: 600; }
+.zs-bad   { color: var(--accent); font-weight: 600; }
+
+.zone-coaching-tip { font-size: 14.5px; color: var(--text); line-height: 1.75; }
+.zone-coaching-tip p { margin: 0 0 6px 0; }
+.zone-coaching-tip strong { color: var(--cyan); font-weight: 700; }
+.zone-coaching-header {
+  font-family: var(--font-display);
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
+}
+
+/* ── MY RACING TIPS TAB ─────────────────────────────────── */
+.tips-layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tips-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(232,76,30,0.10), 0 2px 10px rgba(0,0,0,0.15);
+  flex-shrink: 0;
+}
+.tips-header-left { display: flex; align-items: center; gap: 14px; }
+.tips-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.tips-subtitle { font-size: 11px; color: var(--muted2); }
+.tips-main {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.tips-main::-webkit-scrollbar { width: 4px; }
+.tips-main::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.tips-card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  margin-bottom: 16px;
+  line-height: 1.8;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.tips-card.tips-focus {
+  border-top: 2px solid var(--cyan);
+}
+.tips-card.tips-patterns {
+  border-top: 2px solid var(--orange);
+}
+.tips-card.tips-improvements {
+  border-top: 2px solid var(--green);
+}
+.tips-card-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+.tips-analysis-count {
+  font-size: 12px;
+  color: var(--muted2);
+  padding: 10px 0 0;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+}
+.tips-updating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(0,196,255,0.06);
+  border: 1px solid rgba(0,196,255,0.15);
+  border-radius: 5px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--cyan);
+}
+
+/* ── MARCUS LOGIN MODAL ──────────────────────────────────── */
+.marcus-modal[hidden] {
+  display: none !important;
+}
+.marcus-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.marcus-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+}
+.marcus-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  padding: 24px 28px 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+.marcus-modal__close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.marcus-modal__close:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+.marcus-modal__title {
+  margin: 0 0 12px;
+  font-family: var(--font-display, inherit);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.marcus-modal__text {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.marcus-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.marcus-modal__btn {
+  flex: 1;
+  min-width: 120px;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}

@@ -1,0 +1,25 @@
+---
+description: Deploy Race Arena to Firebase after each implementation iteration
+alwaysApply: true
+---
+
+# Firebase deploy after iterations
+
+When you **finish** code or config changes for this project that affect what runs in production or preview (Hosting static assets, Cloud Functions, Firestore rules, or Storage rules), **run a deploy from the project root** before wrapping up the turn:
+
+```bash
+cd /Users/rtd-comms/Desktop/Dev/race-coach && firebase deploy
+```
+
+- Use **`firebase deploy --only hosting`** if only `index.html`, `css/`, `js/`, `prompts/`, or other hosted files changed.
+- Use **`firebase deploy --only functions`** if only `functions/` changed.
+- Use **`firebase deploy --only firestore`** if only `firestore.rules` (or indexes) changed.
+- **Full `firebase deploy`** when multiple targets changed or unsure.
+
+Skip deploy only when the user says not to, or when changes are purely local/docs with no Firebase impact.
+
+If deploy fails (e.g. auth), report the error and what succeeded; suggest `firebase login --reauth` if credentials failed.
+
+When shipping user-visible app changes, bump **`APP_VERSION`** in `js/constants.js` (semver patch/minor) and tell the user the new version number in the reply.
+
+After meaningful changes, run **`npm test`** and, when possible, **`npm run test:e2e`** (requires `npm install` and `npx playwright install` once).

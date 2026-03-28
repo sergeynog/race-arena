@@ -1,0 +1,11 @@
+[
+  {
+    "origin": [
+      "https://race-arena-d1bc8.web.app",
+      "https://race-arena-d1bc8.firebaseapp.com",
+      "http://localhost:5000"
+    ],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600
+  }
+]

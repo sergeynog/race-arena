@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Race Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Firebase compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js"></script>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/lap-selector.css">
+  <link rel="stylesheet" href="css/analysis.css">
+  <link rel="stylesheet" href="css/coach.css">
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-mark"><div class="logo-mark-text">RA</div></div>
+    <div>
+      <div class="logo-name">Race Arena</div>
+      <div class="logo-sub">racearena.xyz</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div id="userHeaderChip"></div>
+</header>
+
+<!-- ══ BODY LAYOUT ═════════════════════════════════════════ -->
+<div class="layout">
+
+  <!-- SIDEBAR — slim active-laps summary strip -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Active Laps</div>
+      <div id="sidebarLapSummary">
+        <div style="color:var(--muted2);font-size:11px;">No laps selected</div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <button class="btn btn-sm" style="width:100%;justify-content:center;"
+              onclick="switchTab('laps')">⇄ Change Laps</button>
+    </div>
+  </div>
+
+  <!-- MAIN ───────────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- TAB BAR -->
+    <div class="tab-bar">
+      <div class="tab active" data-tab="laps">📋 Lap Selector</div>
+      <div class="tab" data-tab="charts">📈 Analysis</div>
+      <div class="tab" data-tab="coaching">🎯 Marcus AI Race Coach</div>
+      <div class="tab" data-tab="tips">📌 My Racing Tips</div>
+    </div>
+
+    <!-- ═══ PANEL: LAP SELECTOR ════════════════════════════ -->
+    <div class="panel active" id="panel-laps">
+      <div class="lap-selector-layout">
+
+        <!-- Top header: drop zone + file info + slots + go button -->
+        <div class="lap-selector-header">
+
+          <!-- Drop zone (hidden until signed in) -->
+          <div class="drop-zone" id="dropZoneSelector" style="display:none;">
+            <div class="drop-zone-icon">📂</div>
+            <div class="drop-zone-text">
+              <strong>Drop AiM CSV files here</strong><br>
+              or click to browse &middot; AiM Race Studio export
+            </div>
+            <input type="file" id="fileInput" accept=".csv" multiple style="display:none">
+          </div>
+
+          <!-- Sign-in required prompt (shown when not logged in) -->
+          <div id="uploadSignInPrompt" class="drop-zone" style="cursor:default;border-style:solid;opacity:0.7;">
+            <div class="drop-zone-icon">🔒</div>
+            <div class="drop-zone-text">
+              <strong>Sign in to upload laps</strong><br>
+              Your name will be attached to every lap you upload
+              &middot; <a href="login.html" style="color:var(--cyan);text-decoration:none;">Sign in →</a>
+            </div>
+          </div>
+
+          <!-- Files loaded summary row -->
+          <div class="files-loaded-row">
+            <span id="filesLoadedText">No files loaded</span>
+            <button class="btn btn-sm" id="btnClearFiles" style="display:none;">× Clear All</button>
+          </div>
+
+          <!-- Lap A / Lap B slots + Go button -->
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div class="lap-slots">
+              <!-- Slot A -->
+              <div class="lap-slot slot-a">
+                <span class="lap-slot-label">Lap A</span>
+                <span class="lap-slot-value" id="slotAValue">Not selected</span>
+                <button class="lap-slot-clear" id="slotAClear" style="display:none;" title="Clear Lap A">×</button>
+              </div>
+              <!-- Slot B -->
+              <div class="lap-slot slot-b">
+                <span class="lap-slot-label">Lap B</span>
+                <span class="lap-slot-value" id="slotBValue">Not selected</span>
+                <button class="lap-slot-clear" id="slotBClear" style="display:none;" title="Clear Lap B">×</button>
+              </div>
+            </div>
+            <div class="go-btn-wrap">
+              <button class="btn btn-primary" id="btnGoAnalysis" disabled>📈 Go to Analysis</button>
+            </div>
+          </div>
+
+        </div><!-- /.lap-selector-header -->
+
+        <!-- Scrollable lap table -->
+        <div class="lap-selector-table-wrap">
+          <table class="lap-selector-table">
+            <thead>
+              <tr>
+                <th style="width:28px;"></th>
+                <th style="width:36px;text-align:center;">A</th>
+                <th style="width:36px;text-align:center;">B</th>
+                <th style="width:36px;text-align:center;">#</th>
+                <th id="thTime" style="cursor:pointer;user-select:none;">Time</th>
+                <th id="thDate" style="cursor:pointer;user-select:none;" title="Date from the AiM data export — may not match the actual track day">Export Date <span style="font-size:9px;opacity:0.5;cursor:help;" title="This date comes from the AiM CSV export and may reflect when data was downloaded, not the session date.">ⓘ</span></th>
+                <th>Track</th>
+                <th>Car</th>
+                <th id="thUser" style="cursor:pointer;user-select:none;">Driver</th>
+                <th>Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="lapTableBody">
+              <tr>
+                <td colspan="11" style="text-align:center;color:var(--muted2);padding:40px 0;">
+                  Drop CSV files above to load laps
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div><!-- /.lap-selector-table-wrap -->
+
+      </div><!-- /.lap-selector-layout -->
+    </div><!-- /#panel-laps -->
+
+    <!-- ═══ PANEL: ANALYSIS ═════════════════════════════════ -->
+    <div class="panel" id="panel-charts">
+
+      <!-- Compare bar — Lap A / Lap B chips + delta + change laps -->
+      <div class="lap-compare-bar" id="lapCompareBar">
+        <span style="color:var(--muted2);font-size:11px;">Select Lap A and Lap B in the Lap Selector tab</span>
+        <button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">← Select Laps</button>
+      </div>
+
+      <!-- Track map row (fixed 310px height) -->
+      <div class="analysis-map-row">
+        <div class="track-canvas-wrap" id="trackCanvasWrap">
+          <div class="empty-state">
+            <div class="empty-icon">🗺</div>
+            <div class="empty-title">No data loaded</div>
+            <div class="empty-desc">Select laps in the Lap Selector tab to see the GPS track map</div>
+          </div>
+        </div>
+        <div class="track-legend" id="trackLegend" style="display:none;">
+          <div class="sidebar-section-title" style="margin-bottom:12px;">Speed Legend</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+            <div class="speed-gradient"></div>
+            <div style="display:flex;flex-direction:column;justify-content:space-between;
+                        height:120px;font-size:10px;color:var(--muted);">
+              <span id="speedMax">—</span><span></span><span></span>
+              <span id="speedMid">—</span><span></span><span></span>
+              <span id="speedMin">0</span>
+            </div>
+          </div>
+          <div class="sidebar-section-title" style="margin-bottom:8px;">Laps</div>
+          <div id="trackLapLegend"></div>
+          <div style="margin-top:12px;font-size:9px;color:var(--muted2);line-height:1.5;">
+            Click track to<br>crosshair charts
+          </div>
+        </div>
+      </div><!-- /.analysis-map-row -->
+
+      <!-- Scrollable telemetry charts grid -->
+      <div class="charts-grid" id="chartsGrid">
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <div class="empty-title">No laps selected</div>
+          <div class="empty-desc">Select Lap A and Lap B in the Lap Selector tab</div>
+        </div>
+      </div>
+
+    </div><!-- /#panel-charts -->
+
+    <!-- ═══ PANEL: AI COACH ══════════════════════════════════ -->
+    <div class="panel" id="panel-coaching">
+      <div class="coaching-layout">
+
+        <!-- Controls bar — read-only Lap A/B + action buttons -->
+        <div class="coaching-controls">
+          <div class="cc-group">
+            <span class="cc-label">Lap A</span>
+            <span class="cc-value" id="coachLapADisplay">— not set</span>
+          </div>
+          <div class="cc-divider"></div>
+          <div class="cc-group">
+            <span class="cc-label">Lap B</span>
+            <span class="cc-value" id="coachLapBDisplay">— not set</span>
+          </div>
+          <div class="cc-divider"></div>
+          <button class="btn btn-sm" onclick="switchTab('laps')">⇄ Change Laps</button>
+          <div class="cc-divider"></div>
+          <button class="btn btn-primary" id="btnPreviewZones" disabled>📍 Zone Maps</button>
+          <button class="btn btn-primary" id="btnAnalyze" disabled>🎯 Analyze Laps</button>
+          <span id="coachSignInNotice" style="display:none;font-size:10px;color:var(--muted);">
+            <a href="login.html" style="color:var(--cyan);text-decoration:none;">Sign in</a> to use Marcus
+          </span>
+          <span class="cc-hint">Zone maps work offline</span>
+        </div>
+
+        <!-- Main scrollable area -->
+        <div class="coaching-main" id="coachingMain">
+          <div class="coaching-empty">
+            <div class="coaching-empty-icon">🏎</div>
+            <div style="font-size:14px;font-weight:600;color:var(--muted);">Ready to analyze</div>
+            <div style="font-size:12px;color:var(--muted2);">
+              Select Lap A and Lap B in the Lap Selector tab,<br>
+              then click Zone Maps or Analyze Laps.
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /.coaching-layout -->
+    </div><!-- /#panel-coaching -->
+
+    <!-- ═══ PANEL: MY RACING TIPS ════════════════════════════ -->
+    <div class="panel" id="panel-tips">
+      <div class="tips-layout">
+        <div class="tips-header">
+          <div class="tips-header-left">
+            <span class="tips-title">📌 My Racing Tips</span>
+            <span class="tips-subtitle" id="tipsLastUpdated"></span>
+          </div>
+          <button class="btn btn-sm" id="btnResetTips" style="display:none;">↺ Reset Tips</button>
+        </div>
+        <div class="tips-main" id="tipsMain">
+          <div class="coaching-empty">
+            <div class="coaching-empty-icon">📌</div>
+            <div style="font-size:14px;font-weight:600;color:var(--muted);">No racing tips yet</div>
+            <div style="font-size:12px;color:var(--muted2);">
+              Run a Marcus analysis on the Coach tab.<br>
+              Your personal tips will build up over time — tracking patterns,<br>
+              improvements, and key focus areas across sessions.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /#panel-tips -->
+
+  </div><!-- /.main -->
+</div><!-- /.layout -->
+
+<footer class="app-footer" title="Client build — hard-refresh (⌘⇧R) if this looks stale">
+  Race Arena · v<span id="appVersionDisplay">…</span>
+</footer>
+
+<!-- ══ UPLOAD SETTINGS MODAL ═══════════════════════════════ -->
+<div id="uploadModal" class="confirm-overlay">
+  <div class="confirm-dialog" style="min-width:380px;max-width:460px;">
+    <div style="font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--fg);letter-spacing:0.2px;">Upload Laps</div>
+    <div id="uploadModalFileCount" style="font-size:13px;color:var(--muted);margin-top:-10px;"></div>
+    <div class="form-group">
+      <label class="form-label">Car</label>
+      <input type="text" id="uploadCarInput" class="form-input" placeholder="e.g. Porsche 911 GT3" maxlength="60">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes for all laps</label>
+      <input type="text" id="uploadNotesInput" class="form-input" placeholder="e.g. raining, new tires, setup change…" maxlength="120">
+    </div>
+    <div class="confirm-actions">
+      <button class="btn" id="uploadModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="uploadModalConfirm">Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CUSTOM CONFIRM DIALOG ═══════════════════════════════ -->
+<div id="confirmOverlay" class="confirm-overlay">
+  <div class="confirm-dialog">
+    <div class="confirm-body" id="confirmMessage">Are you sure?</div>
+    <div class="confirm-actions">
+      <button class="btn" id="confirmCancel">Cancel</button>
+      <button class="btn btn-danger" id="confirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Marcus analyzer: sign-in required -->
+<div id="marcusLoginModal" class="marcus-modal" hidden role="dialog" aria-modal="true" aria-labelledby="marcusLoginModalTitle">
+  <div class="marcus-modal__backdrop" tabindex="-1"></div>
+  <div class="marcus-modal__panel">
+    <button type="button" class="marcus-modal__close" id="marcusLoginModalClose" aria-label="Close">×</button>
+    <h2 class="marcus-modal__title" id="marcusLoginModalTitle">Analyzer</h2>
+    <p class="marcus-modal__text">You must be logged in to use the analyzer.</p>
+    <div class="marcus-modal__actions">
+      <a href="login.html" class="btn btn-primary marcus-modal__btn">Sign in</a>
+      <a href="login.html" class="btn marcus-modal__btn">Register</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCRIPTS — load order matters (no ES modules) ════════ -->
+<script src="js/firebase-config.js"></script>
+<script src="js/constants.js"></script>
+<script src="js/state.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/database.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/trackmap.js"></script>
+<script src="js/zones.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/tips.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

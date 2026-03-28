@@ -1,0 +1,12 @@
+{
+  "name": "race-coach",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/unit/merge-cloud-lap-shape.mjs",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}

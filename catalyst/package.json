@@ -1,0 +1,15 @@
+{
+  "name": "catalyst-reader",
+  "version": "1.0.0",
+  "description": "Garmin Catalyst FIT file reader and session viewer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "fit-file-parser": "^1.9.4",
+    "chokidar": "^3.5.3",
+    "cors": "^2.8.5"
+  }
+}

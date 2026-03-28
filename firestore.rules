@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── USERS ──────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == uid;
+
+      // Per-user session dedup records (only owner reads/writes)
+      match /sessions/{hash} {
+        allow read, create: if request.auth.uid == uid;
+      }
+
+      // Per-user lap copies (only owner reads/writes/deletes)
+      match /laps/{lapId} {
+        allow read, create, update, delete: if request.auth.uid == uid;
+      }
+
+      // Per-user racing tips (persistent, updated after each analysis)
+      match /tips/{docId} {
+        allow read, write: if request.auth.uid == uid;
+      }
+    }
+
+    // ── USERNAMES ──────────────────────────────────────────────
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null &&
+        resource.data.uid == request.auth.uid;
+    }
+
+    // ── GLOBAL COMMUNITY LAPS ──────────────────────────────────
+    // Publicly readable so guests can browse & compare without signing in.
+    // Only the uploader can delete their own laps.
+    match /laps/{lapId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null &&
+        resource.data.uid == request.auth.uid;
+    }
+
+    // ── CACHED AI ANALYSES ──────────────────────────────────────
+    // Any authenticated user can read; only the creator can write.
+    match /analyses/{pairId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+    }
+  }
+}

@@ -1,0 +1,21 @@
+data/
+*.csv
+.firebase/
+node_modules/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Catalyst — local session data (user's personal FIT data, not committed)
+catalyst/sessions/*.json
+catalyst/node_modules/
+
+# Environment / secrets — never commit
+.env
+js/firebase-config.js
+
+# Claude Code internal settings (not needed by cloners)
+.claude/
+
+# macOS
+.DS_Store
