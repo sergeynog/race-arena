@@ -15,10 +15,12 @@ function renderTrackMap() {
   const laps = [lapA, lapB].filter(l => l && Array.isArray(l.data) && l.data.length);
 
   if (!laps.length) {
+    const picked = !!(lapA || lapB);
     wrap.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">🗺</div>
-      <div class="empty-title">No laps selected</div>
-      <div class="empty-desc">Select Lap A and Lap B in the Lap Selector tab to see the GPS track map</div>
+      <div class="empty-title">${picked ? 'Track map unavailable' : 'No laps selected'}</div>
+      <div class="empty-desc">${picked
+        ? 'Telemetry for the selected laps couldn’t be loaded. Try again in a moment.'
+        : 'Choose two laps on the Laps tab to see the GPS track map.'}</div>
     </div>`;
     legend.style.display = 'none';
     return;
@@ -40,7 +42,7 @@ function renderTrackMap() {
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#08080e';
+  ctx.fillStyle = '#101115';
   ctx.fillRect(0, 0, W, H);
 
   // Find bounding box of all laps
@@ -61,9 +63,12 @@ function renderTrackMap() {
   const lonRange = maxLon - minLon || 0.001;
   const scale = Math.min((W - pad*2) / lonRange, (H - pad*2) / latRange);
 
+  // Center the track in whichever axis has spare room
+  const offX = (W - pad*2 - lonRange * scale) / 2;
+  const offY = (H - pad*2 - latRange * scale) / 2;
   const toXY = (lat, lon) => {
-    const x = pad + (lon - minLon) * scale;
-    const y = H - pad - (lat - minLat) * scale;
+    const x = pad + offX + (lon - minLon) * scale;
+    const y = H - pad - offY - (lat - minLat) * scale;
     return [x, y];
   };
 
@@ -129,8 +134,8 @@ function renderTrackMap() {
   ctx.beginPath();
   ctx.arc(sx, sy, 5, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#08080e';
-  ctx.font = 'bold 9px system-ui';
+  ctx.fillStyle = '#101115';
+  ctx.font = '600 10px Inter, system-ui';
   ctx.textAlign = 'center';
   ctx.fillText('S', sx, sy + 3);
 
@@ -142,12 +147,12 @@ function renderTrackMap() {
   const lapLegend = document.getElementById('trackLapLegend');
   let legendHTML = `<div class="legend-item">
     <div class="legend-swatch" style="background:#fff;"></div>
-    <span style="font-size:10px;color:#fff;">Lap A · ${refLap.timeStr}</span>
+    <span style="font-size:13px;color:#fff;">Lap A · ${refLap.timeStr}</span>
   </div>`;
   if (lapB) {
     legendHTML += `<div class="legend-item">
       <div class="legend-swatch" style="background:${LAP_B_COLOR};"></div>
-      <span style="font-size:10px;color:${LAP_B_COLOR};">Lap B · ${lapB.timeStr}</span>
+      <span style="font-size:13px;color:${LAP_B_COLOR};">Lap B · ${lapB.timeStr}</span>
     </div>`;
   }
   lapLegend.innerHTML = legendHTML;

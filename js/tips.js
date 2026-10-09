@@ -49,11 +49,10 @@ function renderTips(tipsData) {
     mainEl.innerHTML = `
       <div class="coaching-empty">
         <div class="coaching-empty-icon">📌</div>
-        <div style="font-size:14px;font-weight:600;color:var(--muted);">No racing tips yet</div>
-        <div style="font-size:12px;color:var(--muted2);">
-          Run a Marcus analysis on the Coach tab.<br>
-          Your personal tips will build up over time — tracking patterns,<br>
-          improvements, and key focus areas across sessions.
+        <div class="coaching-empty-title">No racing tips yet</div>
+        <div class="coaching-empty-desc">
+          Run a Marcus analysis on the AI Coach tab. Your personal tips build up over time,
+          tracking patterns, improvements and key focus areas across sessions.
         </div>
       </div>`;
     if (updatedEl) updatedEl.textContent = '';
@@ -70,8 +69,8 @@ function renderTips(tipsData) {
 
   if (sections.focus) {
     html += `<div class="tips-card tips-focus">
-      <div class="tips-card-label">🎯 What to Work On</div>
-      <div class="coaching-response" style="border:0;padding:0;margin:0;background:transparent;box-shadow:none;">
+      <div class="tips-card-label">What to work on</div>
+      <div class="coaching-response is-plain">
         ${renderMarkdown(sections.focus)}
       </div>
     </div>`;
@@ -79,8 +78,8 @@ function renderTips(tipsData) {
 
   if (sections.patterns) {
     html += `<div class="tips-card tips-patterns">
-      <div class="tips-card-label">🔁 Patterns We're Seeing</div>
-      <div class="coaching-response" style="border:0;padding:0;margin:0;background:transparent;box-shadow:none;">
+      <div class="tips-card-label">Patterns we're seeing</div>
+      <div class="coaching-response is-plain">
         ${renderMarkdown(sections.patterns)}
       </div>
     </div>`;
@@ -88,8 +87,8 @@ function renderTips(tipsData) {
 
   if (sections.progress) {
     html += `<div class="tips-card tips-improvements">
-      <div class="tips-card-label">📈 Your Progress</div>
-      <div class="coaching-response" style="border:0;padding:0;margin:0;background:transparent;box-shadow:none;">
+      <div class="tips-card-label">Your progress</div>
+      <div class="coaching-response is-plain">
         ${renderMarkdown(sections.progress)}
       </div>
     </div>`;

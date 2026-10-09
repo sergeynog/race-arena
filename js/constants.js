@@ -4,7 +4,7 @@
 // ============================================================
 
 // Bump this string on every deploy you want to verify (shown in footer).
-const APP_VERSION = '1.8.4';
+const APP_VERSION = '1.9.0';
 
 // Lap A is always white (reference/target line)
 // Lap B is always cyan (comparison line)

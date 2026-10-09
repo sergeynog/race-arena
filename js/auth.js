@@ -118,8 +118,8 @@ function initAuthObserver(onSignedIn) {
 function buildDriverCard(profile) {
   if (!profile) return '';
   const avatar = profile.photoURL
-    ? `<img src="${profile.photoURL}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--border2);">`
-    : `<div style="width:40px;height:40px;border-radius:50%;background:var(--card2);border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:18px;">👤</div>`;
+    ? `<img class="driver-card-avatar" src="${escapeHtml(profile.photoURL)}" alt="">`
+    : `<div class="driver-card-avatar">👤</div>`;
 
   const expLabel = {
     '<1yr': '< 1 Year', '1-3yr': '1–3 Years',
@@ -137,9 +137,9 @@ function buildDriverCard(profile) {
         <div class="driver-card-name">${escapeHtml(profile.displayName || profile.username)}</div>
         <div class="driver-card-username">@${escapeHtml(profile.username)}</div>
         <div class="driver-card-meta">
-          <span style="color:${levelColor};font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:0.6px;">${profile.level || '—'}</span>
-          <span style="color:var(--muted2);">·</span>
-          <span style="color:var(--muted);font-size:10px;">${expLabel}</span>
+          <span class="driver-card-level" style="color:${levelColor};">${escapeHtml(profile.level || '—')}</span>
+          <span>·</span>
+          <span>${escapeHtml(expLabel)}</span>
         </div>
       </div>
     </div>

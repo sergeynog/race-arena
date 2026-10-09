@@ -28,6 +28,9 @@ const state = {
   sortBy:  'date',             // 'time' | 'date' | 'username'
   sortDir: 'desc',             // 'asc'  | 'desc'
 
+  // ── BULK SELECTION ────────────────────────────────────────
+  selectedLapIds: new Set(),   // String(lap.id) of laps checked for bulk delete
+
   // ── PROFILE CACHE ─────────────────────────────────────────
   // username → profile object, to avoid repeated Firestore reads
   profileCache: {},

@@ -68,7 +68,7 @@ function drawZoneCanvas(canvas, refSeg, compSeg, metric, events) {
   const W = 480, H = 300;
   const LEGEND_H = 32;
   const DRAW_H = H - LEGEND_H;
-  ctx.fillStyle = '#090910';
+  ctx.fillStyle = '#101115';
   ctx.fillRect(0, 0, W, H);
 
   const allPts = [...refSeg, ...compSeg].filter(p => p.lat && p.lon && !(p.lat === 0 && p.lon === 0));
@@ -140,7 +140,7 @@ function drawZoneCanvas(canvas, refSeg, compSeg, metric, events) {
     if (pts.length < 4) return;
     const idx = Math.max(0, Math.min(pts.length - 1, Math.floor(pts.length * frac)));
     const p = pts[idx];
-    ctx.font = 'bold 9px system-ui';
+    ctx.font = '600 11px Inter, system-ui';
     const tw = ctx.measureText(label).width;
     const pad = 4, bh = 13;
     let lx = Math.max(2, Math.min(W - tw - pad*2 - 2, p.x - pad));
@@ -174,7 +174,7 @@ function drawZoneCanvas(canvas, refSeg, compSeg, metric, events) {
     ctx.shadowBlur = 0;
 
     if (label) {
-      ctx.font = 'bold 9px system-ui';
+      ctx.font = '600 11px Inter, system-ui';
       const tw = ctx.measureText(label).width;
       const margin = 6;
       let lx = x + r + margin;
@@ -239,7 +239,7 @@ function drawZoneCanvas(canvas, refSeg, compSeg, metric, events) {
   ctx.beginPath(); ctx.roundRect(LX, LY, LW, 7, 3); ctx.fill();
 
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.font = 'bold 10px system-ui';
+  ctx.font = '600 11px Inter, system-ui';
   ctx.textAlign = 'left';  ctx.fillText(minVal.toFixed(metric === 'brake' ? 1 : 0), LX, LY + 17);
   ctx.textAlign = 'right'; ctx.fillText(maxVal.toFixed(metric === 'brake' ? 1 : 0), LX + LW, LY + 17);
   ctx.textAlign = 'center';
@@ -349,7 +349,7 @@ function drawPressureChart(canvas, refSeg, compSeg, zone) {
   // Scale from original 480×300 logical space → actual canvas size for crisp output
   ctx.scale(canvas.width / 480, canvas.height / 300);
   const W = 480, H = 300;
-  ctx.fillStyle = '#07070f';
+  ctx.fillStyle = '#101115';
   ctx.fillRect(0, 0, W, H);
 
   const mL = 36, mR = 14, mT = 16, mB = 38;
@@ -371,7 +371,7 @@ function drawPressureChart(canvas, refSeg, compSeg, zone) {
     ctx.lineWidth = pct === 0 ? 1 : 0.5;
     ctx.beginPath(); ctx.moveTo(mL, y); ctx.lineTo(mL + pW, y); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.font = 'bold 10px system-ui';
+    ctx.font = '600 11px Inter, system-ui';
     ctx.textAlign = 'right';
     ctx.fillText(pct + '%', mL - 5, y + 4);
   });
@@ -419,7 +419,7 @@ function drawPressureChart(canvas, refSeg, compSeg, zone) {
   ctx.translate(10, mT + pH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = 'bold 10px system-ui';
+  ctx.font = '600 11px Inter, system-ui';
   ctx.textAlign = 'center';
   ctx.fillText('%', 0, 0);
   ctx.restore();
@@ -431,7 +431,7 @@ function drawPressureChart(canvas, refSeg, compSeg, zone) {
   ctx.stroke();
 
   // X tick labels
-  ctx.font = 'bold 10px system-ui';
+  ctx.font = '600 11px Inter, system-ui';
   const nTicks = Math.min(6, Math.floor(pW / 55));
   for (let i = 0; i <= nTicks; i++) {
     const d = dMin + (i / nTicks) * dRange;
@@ -445,7 +445,7 @@ function drawPressureChart(canvas, refSeg, compSeg, zone) {
 
   // X axis label
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  ctx.font = '11px Inter, system-ui'; ctx.textAlign = 'center';
   ctx.fillText('Distance from corner entry (m)', mL + pW / 2, mT + pH + 28);
   ctx.restore(); // restore scale transform
 }
@@ -545,7 +545,7 @@ function renderAndDrawZones(refLap, compLap) {
           <div class="zone-legend-pill"><div style="width:16px;height:3px;background:#00c4ff;border-radius:2px;display:inline-block;"></div>&nbsp;Lap B (offset)</div>
           <div class="zone-legend-pill" style="margin-left:8px;border-left:1px solid rgba(255,255,255,0.1);padding-left:12px;"><div style="width:16px;height:2px;background:#ff3333;display:inline-block;vertical-align:middle;"></div>&nbsp;Brake</div>
           <div class="zone-legend-pill"><div style="width:16px;height:2px;background:#00e076;display:inline-block;vertical-align:middle;"></div>&nbsp;Throttle</div>
-          <div class="zone-legend-pill" style="color:rgba(255,255,255,0.3);font-size:9px;">— solid = Lap A &nbsp;· · · dashed = Lap B</div>
+          <div class="zone-legend-pill" style="color:var(--muted2);">— solid = Lap A &nbsp;· · · dashed = Lap B</div>
         </div>
       </div>
       <div class="zone-cards">
@@ -558,7 +558,7 @@ function renderAndDrawZones(refLap, compLap) {
             <div class="zone-card-panels">
               <div class="zone-panel">
                 <div class="chart-legend-row">
-                  <span class="chart-leg-item" style="color:rgba(255,255,255,0.3);font-size:9px;letter-spacing:0.5px;text-transform:uppercase;">Track Map · Speed</span>
+                  <span class="chart-leg-item" style="color:rgba(255,255,255,0.3);font-size:12px;">Track Map · Speed</span>
                   <span class="chart-leg-item"><span style="display:inline-block;width:18px;height:3px;background:#fff;border-radius:2px;vertical-align:middle;"></span>&nbsp;Lap A</span>
                   <span class="chart-leg-item"><span style="display:inline-block;width:14px;height:2.5px;background:#00c4ff;border-radius:2px;vertical-align:middle;"></span>&nbsp;Lap B</span>
                 </div>

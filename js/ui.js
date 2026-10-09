@@ -1,7 +1,7 @@
 // ============================================================
 // UI RENDERING
 // Race Arena — ui.js
-// Renders the Lap Selector tab, compare bar, sidebar, and
+// Renders the Lap Selector tab, compare bar, bulk actions and
 // user header chip.  Now supports cloud laps + sort controls.
 // ============================================================
 
@@ -51,30 +51,22 @@ function renderUserHeader() {
   const profile = state.currentUserProfile;
 
   if (!user) {
-    // Guest — show Sign In button
-    chip.innerHTML = `
-      <a href="login.html" class="btn btn-sm" style="
-        background:linear-gradient(155deg,#df3040 0%,#c8293a 52%,#a31d2b 100%);
-        border-color:transparent;color:#fff;font-weight:700;letter-spacing:0.3px;
-        box-shadow:0 2px 10px rgba(200,41,58,0.38),inset 0 1px 0 rgba(255,255,255,0.14);
-        text-decoration:none;padding:5px 14px;
-      ">Sign In</a>
-    `;
+    chip.innerHTML = `<a href="login.html" class="btn btn-primary btn-sm">Sign in</a>`;
     return;
   }
 
   // Authenticated member
   const avatar = (profile && profile.photoURL)
-    ? `<img src="${profile.photoURL}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid var(--border2);">`
-    : `<div style="width:26px;height:26px;border-radius:50%;background:var(--card2);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:13px;">👤</div>`;
+    ? `<img class="user-avatar" src="${escapeHtml(profile.photoURL)}" alt="">`
+    : `<div class="user-avatar">${escapeHtml(((profile && profile.username) || user.displayName || '?').charAt(0).toUpperCase())}</div>`;
 
   const username = profile ? `@${profile.username}` : (user.displayName || user.email || '');
 
   chip.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;">
+    <div class="user-chip">
       ${avatar}
-      <span style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:0.2px;">${escapeHtml(username)}</span>
-      <button class="btn btn-sm" id="btnSignOut" style="padding:3px 9px;font-size:10px;">Sign Out</button>
+      <span class="user-name">${escapeHtml(username)}</span>
+      <button class="btn btn-sm btn-ghost" id="btnSignOut">Sign out</button>
     </div>
   `;
 
@@ -97,11 +89,17 @@ function driverPill(lap) {
     return `<span class="lap-file-cell">${escapeHtml(lapSourceLabel(lap))}</span>`;
   }
   const isMe = state.currentUserProfile && lap.username === state.currentUserProfile.username;
-  const color = isMe ? 'var(--cyan)' : 'var(--muted)';
-  return `<span class="lap-driver-pill" data-username="${escapeHtml(lap.username)}"
-    style="color:${color};cursor:pointer;" title="View ${lap.username}'s profile">
-    @${escapeHtml(lap.username)}
-  </span>`;
+  return `<span class="lap-driver-pill${isMe ? ' is-me' : ''}" data-username="${escapeHtml(lap.username)}"
+    title="View ${escapeHtml(lap.username)}'s profile">@${escapeHtml(lap.username)}</span>`;
+}
+
+// ── OWNERSHIP ─────────────────────────────────────────────────
+// Local laps are always yours; cloud laps only if you uploaded them.
+function isOwnLap(lap) {
+  if (!lap._cloud) return true;
+  const myUid      = state.currentUser?.uid;
+  const myUsername = state.currentUserProfile?.username;
+  return !!(myUid && (lap.uid === myUid || lap.username === myUsername));
 }
 
 // ── LAP SELECTOR TAB ─────────────────────────────────────────
@@ -139,7 +137,7 @@ function renderLapSelector() {
       const parts = [];
       if (localCount) parts.push(`${localCount} local lap${localCount > 1 ? 's' : ''}`);
       if (cloudCount) parts.push(`${cloudCount} community lap${cloudCount > 1 ? 's' : ''}`);
-      filesText.textContent = parts.join(' + ') || `${laps.length} laps`;
+      filesText.textContent = parts.join(' · ') || `${laps.length} laps`;
     } else {
       filesText.textContent = 'No laps loaded';
     }
@@ -147,13 +145,18 @@ function renderLapSelector() {
   const clearBtn = document.getElementById('btnClearFiles');
   if (clearBtn) clearBtn.style.display = laps.filter(l => !l._cloud).length ? '' : 'none';
 
+  // Drop selections for laps that no longer exist or aren't deletable
+  const ownIds = new Set(laps.filter(isOwnLap).map(l => String(l.id)));
+  for (const id of state.selectedLapIds) if (!ownIds.has(id)) state.selectedLapIds.delete(id);
+  syncBulkBar(ownIds.size);
+
   // Table
   const tbody = document.getElementById('lapTableBody');
   if (!tbody) return;
 
   if (!laps.length) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--muted2);padding:40px 0;">
-      Drop CSV files above to load laps${FIREBASE_CONFIGURED ? ' · Community laps loading…' : ''}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="table-empty">
+      ${FIREBASE_CONFIGURED ? 'Loading community laps…' : 'Upload AiM CSV files above to get started.'}</td></tr>`;
     return;
   }
 
@@ -168,10 +171,8 @@ function renderLapSelector() {
 
   // Sort header arrows
   const sortIcon = (col) => {
-    if (state.sortBy !== col) return `<span style="color:var(--muted2);font-size:9px;">⇅</span>`;
-    return state.sortDir === 'asc'
-      ? `<span style="color:var(--cyan);font-size:9px;">↑</span>`
-      : `<span style="color:var(--cyan);font-size:9px;">↓</span>`;
+    if (state.sortBy !== col) return `<span class="sort-icon">↕</span>`;
+    return `<span class="sort-icon is-active">${state.sortDir === 'asc' ? '↑' : '↓'}</span>`;
   };
 
   // Update sort headers
@@ -179,18 +180,18 @@ function renderLapSelector() {
   const thDate = document.getElementById('thDate');
   const thUser = document.getElementById('thUser');
   if (thTime) thTime.innerHTML = `Time ${sortIcon('time')}`;
-  if (thDate) thDate.innerHTML = `Export Date <span style="font-size:9px;opacity:0.5;cursor:help;" title="This date comes from the AiM CSV export and may reflect when data was downloaded, not the session date.">ⓘ</span> ${sortIcon('date')}`;
+  if (thDate) thDate.innerHTML = `Export date ${sortIcon('date')}`;
   if (thUser) thUser.innerHTML = `Driver ${sortIcon('username')}`;
 
   // Render rows
-  const myUid      = state.currentUser?.uid;
-  const myUsername = state.currentUserProfile?.username;
-
   let html = '';
   sorted.forEach(lap => {
-    const isA    = String(lap.id) === String(state.lapA);
-    const isB    = String(lap.id) === String(state.lapB);
+    const id     = String(lap.id);
+    const isA    = id === String(state.lapA);
+    const isB    = id === String(state.lapB);
     const isBest = bestLap && lap.id === bestLap.id;
+    const isOwn  = ownIds.has(id);
+    const isSel  = state.selectedLapIds.has(id);
 
     let timeClass = 'lap-time-cell';
     if (isA)         timeClass += ' is-lap-a';
@@ -198,46 +199,45 @@ function renderLapSelector() {
     else if (isBest) timeClass += ' is-best';
 
     let badges = '';
-    if (isBest)       badges += `<span class="lap-badge badge-best">BEST</span> `;
-    if (lap.isOutLap) badges += `<span class="lap-badge badge-outlap">OUT</span> `;
-    if (lap.isInLap)  badges += `<span class="lap-badge badge-outlap">IN</span> `;
+    if (isBest)       badges += `<span class="lap-badge badge-best">Best</span>`;
+    if (lap.isOutLap) badges += `<span class="lap-badge badge-outlap">Out</span>`;
+    if (lap.isInLap)  badges += `<span class="lap-badge badge-outlap">In</span>`;
 
-    const isOwnLap =
-      !lap._cloud ||
-      (myUid && (lap.uid === myUid || lap.username === myUsername));
-    const deleteBtn = isOwnLap
-      ? `<button class="lap-delete-btn" data-id="${lap.id}" title="Delete lap"
-           style="background:none;border:none;color:var(--muted2);cursor:pointer;
-                  font-size:13px;padding:2px 5px;line-height:1;opacity:0.5;"
-         >✕</button>`
+    const checkbox = isOwn
+      ? `<input type="checkbox" class="lap-check" data-id="${escapeHtml(id)}" ${isSel ? 'checked' : ''} aria-label="Select lap">`
+      : '';
+    const deleteBtn = isOwn
+      ? `<button class="lap-delete-btn" data-id="${escapeHtml(id)}" title="Delete lap" aria-label="Delete lap">
+           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+         </button>`
       : '';
 
     const trackName = lap.trackName || lap.session || '—';
     const carName   = lap.vehicle || '—';
     const notesText = lap.notes || '';
-    const canEdit   = isOwnLap && state.currentUser;
+    const canEdit   = isOwn && state.currentUser;
     const noteCell  = canEdit
-      ? `<span class="lap-note-cell" data-id="${lap.id}" title="Click to edit notes"
-           style="cursor:pointer;color:${notesText ? 'var(--text)' : 'var(--muted2)'};font-size:12px;max-width:140px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-         >${notesText ? escapeHtml(notesText) : '＋'}</span>`
-      : `<span style="color:var(--muted2);font-size:12px;max-width:140px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${notesText ? escapeHtml(notesText) : '—'}</span>`;
+      ? `<span class="lap-note-cell is-editable${notesText ? '' : ' is-empty'}" data-id="${escapeHtml(id)}" title="Click to edit notes"
+         >${notesText ? escapeHtml(notesText) : 'Add note'}</span>`
+      : `<span class="lap-note-cell${notesText ? '' : ' is-empty'}">${notesText ? escapeHtml(notesText) : '—'}</span>`;
 
-    html += `<tr class="${isA ? 'is-lap-a' : ''} ${isB ? 'is-lap-b' : ''}" data-id="${lap.id}">
-      <td style="width:28px;text-align:center;">${deleteBtn}</td>
-      <td style="width:36px;text-align:center;">
-        <button class="slot-btn ${isA ? 'active-a' : ''}" data-slot="a" data-id="${lap.id}" title="Set as Lap A">A</button>
+    const rowClass = [isA && 'is-lap-a', isB && 'is-lap-b', isSel && 'is-selected'].filter(Boolean).join(' ');
+    html += `<tr class="${rowClass}" data-id="${escapeHtml(id)}">
+      <td class="col-check">${checkbox}</td>
+      <td class="col-slot">
+        <button class="slot-btn ${isA ? 'active-a' : ''}" data-slot="a" data-id="${escapeHtml(id)}" title="Set as Lap A">A</button>
       </td>
-      <td style="width:36px;text-align:center;">
-        <button class="slot-btn ${isB ? 'active-b' : ''}" data-slot="b" data-id="${lap.id}" title="Set as Lap B">B</button>
+      <td class="col-slot">
+        <button class="slot-btn ${isB ? 'active-b' : ''}" data-slot="b" data-id="${escapeHtml(id)}" title="Set as Lap B">B</button>
       </td>
-      <td style="width:36px;text-align:center;color:var(--muted);font-size:11px;">${lap.lapNumber || '—'}</td>
-      <td class="${timeClass}">${lap.timeStr || lap.lapTime || '—'}</td>
+      <td class="col-num">${lap.lapNumber || '—'}</td>
+      <td><span class="${timeClass}">${lap.timeStr || lap.lapTime || '—'}</span>${badges}</td>
       <td class="lap-session-cell">${lap.date || '—'}</td>
       <td class="lap-session-cell">${escapeHtml(trackName)}</td>
-      <td class="lap-session-cell" style="font-size:12px;">${escapeHtml(carName)}</td>
+      <td class="lap-session-cell">${escapeHtml(carName)}</td>
       <td>${driverPill(lap)}</td>
       <td>${noteCell}</td>
-      <td class="lap-file-cell">${badges}</td>
+      <td class="col-actions">${deleteBtn}</td>
     </tr>`;
   });
 
@@ -269,26 +269,25 @@ function renderLapSelector() {
     });
   });
 
+  // Row checkboxes — bulk selection
+  tbody.querySelectorAll('.lap-check').forEach(cb => {
+    cb.addEventListener('click', e => e.stopPropagation());
+    cb.addEventListener('change', () => {
+      if (cb.checked) state.selectedLapIds.add(cb.dataset.id);
+      else state.selectedLapIds.delete(cb.dataset.id);
+      cb.closest('tr')?.classList.toggle('is-selected', cb.checked);
+      syncBulkBar(ownIds.size);
+    });
+  });
+
   // Delete button
   tbody.querySelectorAll('.lap-delete-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const id  = btn.dataset.id;
-      const lap = state.allLaps.find(l => String(l.id) === String(id));
+      const lap = state.allLaps.find(l => String(l.id) === btn.dataset.id);
       if (!lap) return;
       if (!await showConfirm(`Delete ${lap.timeStr || lap.lapTime || 'this lap'}? This cannot be undone.`, 'Delete')) return;
-
-      // Remove from state
-      state.allLaps = state.allLaps.filter(l => l.id !== id);
-      if (state.lapA === id) { state.lapA = null; state.lastRenderedPair = { a: null, b: null }; }
-      if (state.lapB === id) { state.lapB = null; state.lastRenderedPair = { a: null, b: null }; }
-      updateAll();
-
-      // Delete from Firestore if cloud lap
-      if (lap._cloud && state.currentUser) {
-        deleteLapFromCloud(id, state.currentUser.uid).catch(err =>
-          console.warn('[Race Arena] Cloud delete failed:', err));
-      }
+      await deleteLaps([lap]);
     });
   });
 
@@ -302,7 +301,7 @@ function renderLapSelector() {
   });
 
   // Notes inline edit
-  tbody.querySelectorAll('.lap-note-cell').forEach(cell => {
+  tbody.querySelectorAll('.lap-note-cell.is-editable').forEach(cell => {
     cell.addEventListener('click', (e) => {
       e.stopPropagation();
       if (cell.querySelector('input')) return;
@@ -312,14 +311,10 @@ function renderLapSelector() {
 
       const input = document.createElement('input');
       input.type = 'text';
+      input.className = 'form-input lap-note-input';
       input.value = lap.notes || '';
       input.placeholder = 'e.g. raining, new tires…';
       input.maxLength = 120;
-      input.style.cssText = `
-        background:var(--bg);border:1px solid var(--cyan);color:var(--text);
-        padding:3px 7px;border-radius:4px;font-size:12px;font-family:var(--font);
-        width:140px;outline:none;
-      `;
 
       cell.textContent = '';
       cell.appendChild(input);
@@ -328,8 +323,8 @@ function renderLapSelector() {
       const save = async () => {
         const val = input.value.trim();
         lap.notes = val;
-        cell.textContent = val || '＋';
-        cell.style.color = val ? 'var(--text)' : 'var(--muted2)';
+        cell.textContent = val || 'Add note';
+        cell.classList.toggle('is-empty', !val);
         if (lap._cloud && state.currentUser) {
           saveLapNote(lap.id, state.currentUser.uid, val).catch(err =>
             console.warn('[Race Arena] Note save failed:', err));
@@ -343,6 +338,75 @@ function renderLapSelector() {
       });
     });
   });
+}
+
+// ── BULK SELECTION ────────────────────────────────────────────
+
+// Show the bulk bar when anything is checked; keep the header
+// "select all" checkbox in sync (checked / indeterminate / off).
+function syncBulkBar(ownCount) {
+  const n       = state.selectedLapIds.size;
+  const bar     = document.getElementById('bulkActions');
+  const countEl = document.getElementById('bulkCount');
+  const all     = document.getElementById('lapSelectAll');
+  if (bar) bar.hidden = n === 0;
+  if (countEl) countEl.textContent = `${n} selected`;
+  document.querySelector('.lap-selector-table')?.classList.toggle('has-own-laps', ownCount > 0);
+  if (all) {
+    all.disabled      = ownCount === 0;
+    all.checked       = ownCount > 0 && n === ownCount;
+    all.indeterminate = n > 0 && n < ownCount;
+    all.title = ownCount ? 'Select all your laps' : 'You have no laps you can delete';
+  }
+}
+
+function setAllLapsSelected(checked) {
+  state.selectedLapIds.clear();
+  if (checked) state.allLaps.filter(isOwnLap).forEach(l => state.selectedLapIds.add(String(l.id)));
+  renderLapSelector();
+}
+
+async function deleteSelectedLaps() {
+  const laps = state.allLaps.filter(l => state.selectedLapIds.has(String(l.id)));
+  if (!laps.length) return;
+  const label = laps.length === 1 ? '1 lap' : `${laps.length} laps`;
+  if (!await showConfirm(`Delete ${label}? This cannot be undone.`, `Delete ${label}`)) return;
+  await deleteLaps(laps);
+}
+
+// Removes laps from state and, for cloud laps, from Firestore.
+// Laps whose cloud delete fails stay in the table.
+async function deleteLaps(laps) {
+  const uid = state.currentUser?.uid;
+  const results = await Promise.allSettled(laps.map(lap =>
+    (lap._cloud && uid) ? deleteLapFromCloud(lap.id, uid) : Promise.resolve()));
+
+  const deleted = new Set();
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') deleted.add(String(laps[i].id));
+    else console.warn('[Race Arena] Cloud delete failed:', r.reason);
+  });
+
+  state.allLaps = state.allLaps.filter(l => !deleted.has(String(l.id)));
+  deleted.forEach(id => state.selectedLapIds.delete(id));
+  if (deleted.has(String(state.lapA))) { state.lapA = null; state.lastRenderedPair = { a: null, b: null }; }
+  if (deleted.has(String(state.lapB))) { state.lapB = null; state.lastRenderedPair = { a: null, b: null }; }
+  updateAll();
+
+  const failed = laps.length - deleted.size;
+  if (failed) showToast(`Couldn't delete ${failed} lap${failed > 1 ? 's' : ''}. Please try again.`, 'error');
+  else if (laps.length > 1) showToast(`Deleted ${deleted.size} laps`);
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function showToast(message, kind = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${kind}`;
+  el.setAttribute('role', 'status');
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => el.classList.add('is-leaving'), 3200);
+  setTimeout(() => el.remove(), 3600);
 }
 
 // ── DRIVER PROFILE POPUP ──────────────────────────────────────
@@ -367,12 +431,7 @@ async function showDriverPopup(username, anchorEl) {
 
   const popup = document.createElement('div');
   popup.id = 'driverPopup';
-  popup.style.cssText = `
-    position:fixed; z-index:900;
-    background:var(--card); border:1px solid var(--border2); border-top:2px solid var(--accent);
-    border-radius:6px; padding:14px; box-shadow:0 8px 32px rgba(0,0,0,0.5);
-    min-width:200px; font-size:12px;
-  `;
+  popup.className = 'driver-popup';
   popup.innerHTML = buildDriverCard(profile);
 
   document.body.appendChild(popup);
@@ -380,7 +439,7 @@ async function showDriverPopup(username, anchorEl) {
   // Position near anchor
   const rect = anchorEl.getBoundingClientRect();
   popup.style.top  = `${rect.bottom + 6}px`;
-  popup.style.left = `${Math.min(rect.left, window.innerWidth - 220)}px`;
+  popup.style.left = `${Math.min(rect.left, window.innerWidth - 240)}px`;
 
   // Click outside to close
   const close = (e) => { if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('click', close); } };
@@ -396,8 +455,8 @@ function renderCompareBar() {
   const lapB = getLapB();
 
   if (!lapA && !lapB) {
-    bar.innerHTML = `<span style="color:var(--muted2);font-size:11px;">Select Lap A and Lap B in the Lap Selector tab</span>
-      <button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">← Select Laps</button>`;
+    bar.innerHTML = `<span class="compare-hint">Pick Lap A and Lap B on the Laps tab to compare them.</span>
+      <button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">Choose laps</button>`;
     return;
   }
 
@@ -409,7 +468,7 @@ function renderCompareBar() {
       <div class="compare-chip-dot" style="background:#fff;"></div>
       <span class="compare-chip-label">Lap A</span>
       <span class="compare-chip-time" style="color:#fff;">${lapA.timeStr}</span>
-      <span style="color:var(--muted2);font-size:10px;">Lap ${lapA.lapNumber}${driver}</span>
+      <span class="compare-chip-meta">Lap ${lapA.lapNumber}${driver}</span>
     </div>`;
   }
 
@@ -427,51 +486,12 @@ function renderCompareBar() {
       <span class="compare-chip-label">Lap B</span>
       <span class="compare-chip-time" style="color:var(--cyan);">${lapB.timeStr}</span>
       ${delta}
-      <span style="color:var(--muted2);font-size:10px;">Lap ${lapB.lapNumber}${driver}</span>
+      <span class="compare-chip-meta">Lap ${lapB.lapNumber}${driver}</span>
     </div>`;
   }
 
-  html += `<button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">⇄ Change Laps</button>`;
+  html += `<button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">Change laps</button>`;
   bar.innerHTML = html;
-}
-
-// ── SIDEBAR SLIM SUMMARY ──────────────────────────────────────
-
-function renderSidebar() {
-  const lapA = getLapA();
-  const lapB = getLapB();
-  const container = document.getElementById('sidebarLapSummary');
-  if (!container) return;
-
-  let html = '';
-
-  if (lapA) {
-    const meta = lapA.username ? `@${lapA.username}` : lapSourceLabel(lapA);
-    html += `<div class="sidebar-lap-entry">
-      <div class="sidebar-lap-dot" style="background:#fff;"></div>
-      <div class="sidebar-lap-info">
-        <div class="sidebar-lap-time" style="color:#fff;">A · ${lapA.timeStr}</div>
-        <div class="sidebar-lap-meta">Lap ${lapA.lapNumber} · ${meta}</div>
-      </div>
-    </div>`;
-  } else {
-    html += `<div style="color:var(--muted2);font-size:11px;">Lap A: not set</div>`;
-  }
-
-  if (lapB) {
-    const meta = lapB.username ? `@${lapB.username}` : lapSourceLabel(lapB);
-    html += `<div class="sidebar-lap-entry">
-      <div class="sidebar-lap-dot" style="background:var(--cyan);"></div>
-      <div class="sidebar-lap-info">
-        <div class="sidebar-lap-time" style="color:var(--cyan);">B · ${lapB.timeStr}</div>
-        <div class="sidebar-lap-meta">Lap ${lapB.lapNumber} · ${meta}</div>
-      </div>
-    </div>`;
-  } else {
-    html += `<div style="color:var(--muted2);font-size:11px;margin-top:6px;">Lap B: not set</div>`;
-  }
-
-  container.innerHTML = html;
 }
 
 // ── MASTER UPDATE ─────────────────────────────────────────────
@@ -479,7 +499,6 @@ function renderSidebar() {
 function updateAll() {
   renderLapSelector();
   renderCompareBar();
-  renderSidebar();
   renderUserHeader();
 
   const pairChanged = state.lastRenderedPair.a !== state.lapA ||

@@ -28,10 +28,6 @@ function switchTab(tabName) {
   const panel = document.getElementById(`panel-${tabName}`);
   if (panel) panel.classList.add('active');
 
-  // Coach + Tips tabs get a full-width layout (sidebar hides)
-  document.querySelector('.layout').classList.toggle('coach-mode',
-    tabName === 'coaching' || tabName === 'tips');
-
   if (tabName === 'coaching') {
     syncCoachingBar();
     const mainEl = document.getElementById('coachingMain');
@@ -41,9 +37,9 @@ function switchTab(tabName) {
       if (lapA && lapB) {
         mainEl.innerHTML = `<div class="coaching-empty">
           <div class="coaching-empty-icon">🏎</div>
-          <div style="font-size:14px;font-weight:600;color:var(--fg);">Laps selected — ready to analyze</div>
-          <div style="font-size:12px;color:var(--muted2);">
-            Click <strong>📍 Zone Maps</strong> for a quick visual, or <strong>🎯 Analyze Laps</strong> for a full AI coaching report.
+          <div class="coaching-empty-title">Laps selected — ready to analyze</div>
+          <div class="coaching-empty-desc">
+            Open <strong>Zone maps</strong> for a quick corner-by-corner view, or <strong>Analyze with Marcus</strong> for a full AI coaching report.
           </div>
         </div>`;
       }
@@ -340,7 +336,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── TAB BAR ───────────────────────────────────────────────
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    tab.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchTab(tab.dataset.tab); }
+    });
   });
+
+  // ── BULK SELECT / DELETE ───────────────────────────────────
+  document.getElementById('lapSelectAll')?.addEventListener('change', e => setAllLapsSelected(e.target.checked));
+  document.getElementById('btnBulkClear')?.addEventListener('click', () => setAllLapsSelected(false));
+  document.getElementById('btnBulkDelete')?.addEventListener('click', deleteSelectedLaps);
 
   // ── SORT COLUMN HEADERS ────────────────────────────────────
   ['thTime', 'thDate', 'thUser'].forEach(id => {
@@ -366,8 +370,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const [okA, okB] = await Promise.all([ensureLapData(lapA), ensureLapData(lapB)]);
     if (!okA || !okB) {
-      mainEl.innerHTML = `<div class="coaching-response" style="border-color:var(--accent);">
-        <h2 style="color:var(--accent);">Error</h2>
+      mainEl.innerHTML = `<div class="coaching-response is-error">
+        <h2>Something went wrong</h2>
         <p>Could not load telemetry. Please try again.</p>
       </div>`;
       return;
@@ -405,8 +409,8 @@ document.addEventListener('DOMContentLoaded', () => {
       mainEl.innerHTML = `<div class="coaching-loading"><div class="spinner"></div> Loading lap data from cloud…</div>`;
       const [okA, okB] = await Promise.all([ensureLapData(lapA), ensureLapData(lapB)]);
       if (!okA || !okB) {
-        mainEl.innerHTML = `<div class="coaching-response" style="border-color:var(--accent);">
-          <h2 style="color:var(--accent);">Error</h2>
+        mainEl.innerHTML = `<div class="coaching-response is-error">
+          <h2>Something went wrong</h2>
           <p>Could not load telemetry for ${!okA ? 'Lap A' : 'Lap B'}. Please try again.</p>
         </div>`;
         analyzeBtn.disabled = false;
@@ -423,8 +427,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cached && cached.response) {
       const zones = renderAndDrawZones(lapA, lapB);
       mainEl.innerHTML = `
-        <div class="coaching-response" style="margin-bottom:24px;">
-          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📋 Marcus — AI Coaching Report <span style="opacity:.5">(cached)</span></div>
+        <div class="coaching-response">
+          <div class="report-label">Marcus · AI coaching report <span class="muted">(cached)</span></div>
           ${renderMarkdown(cached.response)}
         </div>
         ${zones ? zones.html : ''}
@@ -445,8 +449,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await callClaude(system, user);
 
       mainEl.innerHTML = `
-        <div class="coaching-response" style="margin-bottom:24px;">
-          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">📋 Marcus — AI Coaching Report</div>
+        <div class="coaching-response">
+          <div class="report-label">Marcus · AI coaching report</div>
           ${renderMarkdown(response)}
         </div>
         ${zones ? zones.html : ''}
@@ -465,10 +469,10 @@ document.addEventListener('DOMContentLoaded', () => {
         showMarcusLoginRequiredModal();
         mainEl.innerHTML = getCoachingEmptyPlaceholderHtml();
       } else {
-        mainEl.innerHTML = `<div class="coaching-response" style="border-color:var(--accent);">
-        <h2 style="color:var(--accent);">Error</h2>
+        mainEl.innerHTML = `<div class="coaching-response is-error">
+        <h2>Something went wrong</h2>
         <p>${err.message}</p>
-        <p style="color:var(--muted2);font-size:12px;">Please try again.</p>
+        <p class="muted">Please try again.</p>
       </div>`;
       }
     } finally {

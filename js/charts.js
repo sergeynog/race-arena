@@ -23,11 +23,11 @@ function makeChartConfig(label, unit, datasets) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1c1c2c',
-          borderColor: '#2e2e48',
+          backgroundColor: '#1d2026',
+          borderColor: '#30343c',
           borderWidth: 1,
-          titleColor: '#6a6a90',
-          bodyColor: '#e2e2f0',
+          titleColor: '#9ba1ad',
+          bodyColor: '#e4e6eb',
           callbacks: {
             title: items => `${Math.round(items[0].parsed.x)} m`,
             label: item => ` ${item.dataset.label}: ${item.parsed.y.toFixed(1)} ${unit}`,
@@ -138,7 +138,7 @@ Chart.register({
       const py = chart.scales.y.getPixelForValue(best.y);
       ctx.beginPath();
       ctx.arc(px, py, 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#0d1b2e';
+      ctx.fillStyle = '#16181d';
       ctx.fill();
       ctx.strokeStyle = ds.borderColor;
       ctx.lineWidth = 2;
@@ -155,9 +155,8 @@ function renderCharts() {
 
   if (!lapA && !lapB) {
     grid.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">📊</div>
       <div class="empty-title">No laps selected</div>
-      <div class="empty-desc">Select Lap A and Lap B in the Lap Selector tab to see telemetry overlays</div>
+      <div class="empty-desc">Choose two laps on the Laps tab to see telemetry overlays.</div>
     </div>`;
     return;
   }

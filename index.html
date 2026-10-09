@@ -6,7 +6,7 @@
   <title>Race Arena</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -21,126 +21,112 @@
 </head>
 <body>
 
-<!-- ══ HEADER ══════════════════════════════════════════════ -->
+<!-- ══ HEADER — logo · tabs · user ═════════════════════════ -->
 <header>
-  <div class="logo">
+  <a class="logo" href="index.html" aria-label="Race Arena home">
     <div class="logo-mark"><div class="logo-mark-text">RA</div></div>
-    <div>
-      <div class="logo-name">Race Arena</div>
-      <div class="logo-sub">racearena.xyz</div>
-    </div>
-  </div>
+    <div class="logo-name">Race Arena</div>
+  </a>
+  <nav class="tab-bar" role="tablist">
+    <div class="tab active" data-tab="laps" role="tab" tabindex="0">Laps</div>
+    <div class="tab" data-tab="charts" role="tab" tabindex="0">Analysis</div>
+    <div class="tab" data-tab="coaching" role="tab" tabindex="0">AI Coach</div>
+    <div class="tab" data-tab="tips" role="tab" tabindex="0">My Tips</div>
+  </nav>
   <div class="spacer"></div>
   <div id="userHeaderChip"></div>
 </header>
 
 <!-- ══ BODY LAYOUT ═════════════════════════════════════════ -->
 <div class="layout">
-
-  <!-- SIDEBAR — slim active-laps summary strip -->
-  <div class="sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-section-title">Active Laps</div>
-      <div id="sidebarLapSummary">
-        <div style="color:var(--muted2);font-size:11px;">No laps selected</div>
-      </div>
-    </div>
-    <div class="sidebar-section">
-      <button class="btn btn-sm" style="width:100%;justify-content:center;"
-              onclick="switchTab('laps')">⇄ Change Laps</button>
-    </div>
-  </div>
-
-  <!-- MAIN ───────────────────────────────────────────────── -->
   <div class="main">
-
-    <!-- TAB BAR -->
-    <div class="tab-bar">
-      <div class="tab active" data-tab="laps">📋 Lap Selector</div>
-      <div class="tab" data-tab="charts">📈 Analysis</div>
-      <div class="tab" data-tab="coaching">🎯 Marcus AI Race Coach</div>
-      <div class="tab" data-tab="tips">📌 My Racing Tips</div>
-    </div>
 
     <!-- ═══ PANEL: LAP SELECTOR ════════════════════════════ -->
     <div class="panel active" id="panel-laps">
       <div class="lap-selector-layout">
 
-        <!-- Top header: drop zone + file info + slots + go button -->
+        <!-- Top: upload + comparison slots -->
         <div class="lap-selector-header">
 
-          <!-- Drop zone (hidden until signed in) -->
-          <div class="drop-zone" id="dropZoneSelector" style="display:none;">
-            <div class="drop-zone-icon">📂</div>
-            <div class="drop-zone-text">
-              <strong>Drop AiM CSV files here</strong><br>
-              or click to browse &middot; AiM Race Studio export
+          <div class="lap-selector-top">
+            <!-- Drop zone (hidden until signed in) -->
+            <div class="drop-zone" id="dropZoneSelector" style="display:none;" tabindex="0">
+              <div class="drop-zone-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+              </div>
+              <div class="drop-zone-text">
+                <strong>Upload AiM CSV files</strong>
+                <span>Drag &amp; drop or click to browse · AiM Race Studio export</span>
+              </div>
+              <input type="file" id="fileInput" accept=".csv" multiple style="display:none">
             </div>
-            <input type="file" id="fileInput" accept=".csv" multiple style="display:none">
-          </div>
 
-          <!-- Sign-in required prompt (shown when not logged in) -->
-          <div id="uploadSignInPrompt" class="drop-zone" style="cursor:default;border-style:solid;opacity:0.7;">
-            <div class="drop-zone-icon">🔒</div>
-            <div class="drop-zone-text">
-              <strong>Sign in to upload laps</strong><br>
-              Your name will be attached to every lap you upload
-              &middot; <a href="login.html" style="color:var(--cyan);text-decoration:none;">Sign in →</a>
+            <!-- Sign-in required prompt (shown when not logged in) -->
+            <div id="uploadSignInPrompt" class="drop-zone is-locked">
+              <div class="drop-zone-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              </div>
+              <div class="drop-zone-text">
+                <strong>Sign in to upload your own laps</strong>
+                <span>You can browse and compare community laps as a guest.</span>
+              </div>
+              <a href="login.html" class="btn btn-sm">Sign in</a>
             </div>
-          </div>
-
-          <!-- Files loaded summary row -->
-          <div class="files-loaded-row">
-            <span id="filesLoadedText">No files loaded</span>
-            <button class="btn btn-sm" id="btnClearFiles" style="display:none;">× Clear All</button>
           </div>
 
           <!-- Lap A / Lap B slots + Go button -->
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div class="compare-row">
             <div class="lap-slots">
-              <!-- Slot A -->
               <div class="lap-slot slot-a">
                 <span class="lap-slot-label">Lap A</span>
                 <span class="lap-slot-value" id="slotAValue">Not selected</span>
-                <button class="lap-slot-clear" id="slotAClear" style="display:none;" title="Clear Lap A">×</button>
+                <button class="lap-slot-clear" id="slotAClear" style="display:none;" title="Clear Lap A" aria-label="Clear Lap A">×</button>
               </div>
-              <!-- Slot B -->
               <div class="lap-slot slot-b">
                 <span class="lap-slot-label">Lap B</span>
                 <span class="lap-slot-value" id="slotBValue">Not selected</span>
-                <button class="lap-slot-clear" id="slotBClear" style="display:none;" title="Clear Lap B">×</button>
+                <button class="lap-slot-clear" id="slotBClear" style="display:none;" title="Clear Lap B" aria-label="Clear Lap B">×</button>
               </div>
             </div>
-            <div class="go-btn-wrap">
-              <button class="btn btn-primary" id="btnGoAnalysis" disabled>📈 Go to Analysis</button>
-            </div>
+            <button class="btn btn-primary" id="btnGoAnalysis" disabled>Compare laps →</button>
           </div>
 
         </div><!-- /.lap-selector-header -->
+
+        <!-- Table toolbar: count · bulk actions -->
+        <div class="lap-toolbar">
+          <span id="filesLoadedText">No laps loaded</span>
+          <div class="bulk-actions" id="bulkActions" hidden>
+            <span class="bulk-count" id="bulkCount">0 selected</span>
+            <button class="btn btn-sm btn-ghost" id="btnBulkClear">Clear selection</button>
+            <button class="btn btn-sm btn-danger" id="btnBulkDelete">Delete selected</button>
+          </div>
+          <button class="btn btn-sm btn-ghost" id="btnClearFiles" style="display:none;">Clear local laps</button>
+        </div>
 
         <!-- Scrollable lap table -->
         <div class="lap-selector-table-wrap">
           <table class="lap-selector-table">
             <thead>
               <tr>
-                <th style="width:28px;"></th>
-                <th style="width:36px;text-align:center;">A</th>
-                <th style="width:36px;text-align:center;">B</th>
-                <th style="width:36px;text-align:center;">#</th>
-                <th id="thTime" style="cursor:pointer;user-select:none;">Time</th>
-                <th id="thDate" style="cursor:pointer;user-select:none;" title="Date from the AiM data export — may not match the actual track day">Export Date <span style="font-size:9px;opacity:0.5;cursor:help;" title="This date comes from the AiM CSV export and may reflect when data was downloaded, not the session date.">ⓘ</span></th>
+                <th class="col-check">
+                  <input type="checkbox" class="lap-check" id="lapSelectAll" title="Select all your laps" aria-label="Select all your laps">
+                </th>
+                <th class="col-slot">A</th>
+                <th class="col-slot">B</th>
+                <th class="col-num">#</th>
+                <th id="thTime" class="sortable">Time</th>
+                <th id="thDate" class="sortable" title="Date from the AiM data export — may not match the actual track day">Export date</th>
                 <th>Track</th>
                 <th>Car</th>
-                <th id="thUser" style="cursor:pointer;user-select:none;">Driver</th>
+                <th id="thUser" class="sortable">Driver</th>
                 <th>Notes</th>
-                <th></th>
+                <th class="col-actions"></th>
               </tr>
             </thead>
             <tbody id="lapTableBody">
               <tr>
-                <td colspan="11" style="text-align:center;color:var(--muted2);padding:40px 0;">
-                  Drop CSV files above to load laps
-                </td>
+                <td colspan="11" class="table-empty">Loading laps…</td>
               </tr>
             </tbody>
           </table>
@@ -154,44 +140,39 @@
 
       <!-- Compare bar — Lap A / Lap B chips + delta + change laps -->
       <div class="lap-compare-bar" id="lapCompareBar">
-        <span style="color:var(--muted2);font-size:11px;">Select Lap A and Lap B in the Lap Selector tab</span>
-        <button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">← Select Laps</button>
+        <span class="compare-hint">Pick Lap A and Lap B on the Laps tab to compare them.</span>
+        <button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">Choose laps</button>
       </div>
 
-      <!-- Track map row (fixed 310px height) -->
+      <!-- Track map row -->
       <div class="analysis-map-row">
         <div class="track-canvas-wrap" id="trackCanvasWrap">
           <div class="empty-state">
-            <div class="empty-icon">🗺</div>
-            <div class="empty-title">No data loaded</div>
-            <div class="empty-desc">Select laps in the Lap Selector tab to see the GPS track map</div>
+            <div class="empty-title">No laps selected</div>
+            <div class="empty-desc">Choose two laps on the Laps tab to see the GPS track map.</div>
           </div>
         </div>
         <div class="track-legend" id="trackLegend" style="display:none;">
-          <div class="sidebar-section-title" style="margin-bottom:12px;">Speed Legend</div>
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+          <div class="section-label">Speed</div>
+          <div class="speed-scale">
             <div class="speed-gradient"></div>
-            <div style="display:flex;flex-direction:column;justify-content:space-between;
-                        height:120px;font-size:10px;color:var(--muted);">
-              <span id="speedMax">—</span><span></span><span></span>
-              <span id="speedMid">—</span><span></span><span></span>
+            <div class="speed-scale-labels">
+              <span id="speedMax">—</span>
+              <span id="speedMid">—</span>
               <span id="speedMin">0</span>
             </div>
           </div>
-          <div class="sidebar-section-title" style="margin-bottom:8px;">Laps</div>
+          <div class="section-label">Laps</div>
           <div id="trackLapLegend"></div>
-          <div style="margin-top:12px;font-size:9px;color:var(--muted2);line-height:1.5;">
-            Click track to<br>crosshair charts
-          </div>
+          <div class="track-legend-hint">Click the track to move the chart crosshair.</div>
         </div>
       </div><!-- /.analysis-map-row -->
 
       <!-- Scrollable telemetry charts grid -->
       <div class="charts-grid" id="chartsGrid">
         <div class="empty-state">
-          <div class="empty-icon">📊</div>
           <div class="empty-title">No laps selected</div>
-          <div class="empty-desc">Select Lap A and Lap B in the Lap Selector tab</div>
+          <div class="empty-desc">Choose Lap A and Lap B on the Laps tab.</div>
         </div>
       </div>
 
@@ -204,33 +185,33 @@
         <!-- Controls bar — read-only Lap A/B + action buttons -->
         <div class="coaching-controls">
           <div class="cc-group">
+            <span class="cc-dot" style="background:#fff;"></span>
             <span class="cc-label">Lap A</span>
-            <span class="cc-value" id="coachLapADisplay">— not set</span>
+            <span class="cc-value" id="coachLapADisplay">Not set</span>
           </div>
-          <div class="cc-divider"></div>
           <div class="cc-group">
+            <span class="cc-dot" style="background:var(--cyan);"></span>
             <span class="cc-label">Lap B</span>
-            <span class="cc-value" id="coachLapBDisplay">— not set</span>
+            <span class="cc-value" id="coachLapBDisplay">Not set</span>
           </div>
-          <div class="cc-divider"></div>
-          <button class="btn btn-sm" onclick="switchTab('laps')">⇄ Change Laps</button>
-          <div class="cc-divider"></div>
-          <button class="btn btn-primary" id="btnPreviewZones" disabled>📍 Zone Maps</button>
-          <button class="btn btn-primary" id="btnAnalyze" disabled>🎯 Analyze Laps</button>
-          <span id="coachSignInNotice" style="display:none;font-size:10px;color:var(--muted);">
-            <a href="login.html" style="color:var(--cyan);text-decoration:none;">Sign in</a> to use Marcus
-          </span>
-          <span class="cc-hint">Zone maps work offline</span>
+          <button class="btn btn-sm btn-ghost" onclick="switchTab('laps')">Change</button>
+          <div class="cc-actions">
+            <span id="coachSignInNotice" class="cc-hint" style="display:none;">
+              <a href="login.html">Sign in</a> to use Marcus
+            </span>
+            <button class="btn" id="btnPreviewZones" disabled title="Corner-by-corner maps — works offline">Zone maps</button>
+            <button class="btn btn-primary" id="btnAnalyze" disabled>Analyze with Marcus</button>
+          </div>
         </div>
 
         <!-- Main scrollable area -->
         <div class="coaching-main" id="coachingMain">
           <div class="coaching-empty">
-            <div class="coaching-empty-icon">🏎</div>
-            <div style="font-size:14px;font-weight:600;color:var(--muted);">Ready to analyze</div>
-            <div style="font-size:12px;color:var(--muted2);">
-              Select Lap A and Lap B in the Lap Selector tab,<br>
-              then click Zone Maps or Analyze Laps.
+            <div class="coaching-empty-icon">🏁</div>
+            <div class="coaching-empty-title">Ready when you are</div>
+            <div class="coaching-empty-desc">
+              Choose Lap A and Lap B on the Laps tab, then open <strong>Zone maps</strong>
+              for a corner-by-corner view or <strong>Analyze with Marcus</strong> for a full coaching report.
             </div>
           </div>
         </div>
@@ -243,19 +224,18 @@
       <div class="tips-layout">
         <div class="tips-header">
           <div class="tips-header-left">
-            <span class="tips-title">📌 My Racing Tips</span>
+            <span class="tips-title">My racing tips</span>
             <span class="tips-subtitle" id="tipsLastUpdated"></span>
           </div>
-          <button class="btn btn-sm" id="btnResetTips" style="display:none;">↺ Reset Tips</button>
+          <button class="btn btn-sm" id="btnResetTips" style="display:none;">Reset tips</button>
         </div>
         <div class="tips-main" id="tipsMain">
           <div class="coaching-empty">
             <div class="coaching-empty-icon">📌</div>
-            <div style="font-size:14px;font-weight:600;color:var(--muted);">No racing tips yet</div>
-            <div style="font-size:12px;color:var(--muted2);">
-              Run a Marcus analysis on the Coach tab.<br>
-              Your personal tips will build up over time — tracking patterns,<br>
-              improvements, and key focus areas across sessions.
+            <div class="coaching-empty-title">No racing tips yet</div>
+            <div class="coaching-empty-desc">
+              Run a Marcus analysis on the AI Coach tab. Your personal tips build up over time,
+              tracking patterns, improvements and key focus areas across sessions.
             </div>
           </div>
         </div>
@@ -271,15 +251,17 @@
 
 <!-- ══ UPLOAD SETTINGS MODAL ═══════════════════════════════ -->
 <div id="uploadModal" class="confirm-overlay">
-  <div class="confirm-dialog" style="min-width:380px;max-width:460px;">
-    <div style="font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--fg);letter-spacing:0.2px;">Upload Laps</div>
-    <div id="uploadModalFileCount" style="font-size:13px;color:var(--muted);margin-top:-10px;"></div>
+  <div class="confirm-dialog wide">
+    <div>
+      <div class="modal-title">Upload laps</div>
+      <div id="uploadModalFileCount" class="modal-subtitle" style="margin-top:2px;"></div>
+    </div>
     <div class="form-group">
-      <label class="form-label">Car</label>
+      <label class="form-label" for="uploadCarInput">Car</label>
       <input type="text" id="uploadCarInput" class="form-input" placeholder="e.g. Porsche 911 GT3" maxlength="60">
     </div>
     <div class="form-group">
-      <label class="form-label">Notes for all laps</label>
+      <label class="form-label" for="uploadNotesInput">Notes for all laps</label>
       <input type="text" id="uploadNotesInput" class="form-input" placeholder="e.g. raining, new tires, setup change…" maxlength="120">
     </div>
     <div class="confirm-actions">
@@ -291,7 +273,7 @@
 
 <!-- ══ CUSTOM CONFIRM DIALOG ═══════════════════════════════ -->
 <div id="confirmOverlay" class="confirm-overlay">
-  <div class="confirm-dialog">
+  <div class="confirm-dialog" role="alertdialog" aria-modal="true" aria-describedby="confirmMessage">
     <div class="confirm-body" id="confirmMessage">Are you sure?</div>
     <div class="confirm-actions">
       <button class="btn" id="confirmCancel">Cancel</button>
@@ -305,11 +287,11 @@
   <div class="marcus-modal__backdrop" tabindex="-1"></div>
   <div class="marcus-modal__panel">
     <button type="button" class="marcus-modal__close" id="marcusLoginModalClose" aria-label="Close">×</button>
-    <h2 class="marcus-modal__title" id="marcusLoginModalTitle">Analyzer</h2>
-    <p class="marcus-modal__text">You must be logged in to use the analyzer.</p>
+    <h2 class="marcus-modal__title" id="marcusLoginModalTitle">Sign in to use Marcus</h2>
+    <p class="marcus-modal__text">The AI coach is available to signed-in drivers. Zone maps work without an account.</p>
     <div class="marcus-modal__actions">
       <a href="login.html" class="btn btn-primary marcus-modal__btn">Sign in</a>
-      <a href="login.html" class="btn marcus-modal__btn">Register</a>
+      <a href="login.html" class="btn marcus-modal__btn">Create account</a>
     </div>
   </div>
 </div>

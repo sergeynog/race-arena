@@ -179,11 +179,11 @@ function hideMarcusLoginModal() {
 
 function getCoachingEmptyPlaceholderHtml() {
   return `<div class="coaching-empty">
-    <div class="coaching-empty-icon">🏎</div>
-    <div style="font-size:14px;font-weight:600;color:var(--muted);">Ready to analyze</div>
-    <div style="font-size:12px;color:var(--muted2);">
-      Select Lap A and Lap B in the Lap Selector tab,<br>
-      then click Zone Maps or Analyze Laps.
+    <div class="coaching-empty-icon">🏁</div>
+    <div class="coaching-empty-title">Ready when you are</div>
+    <div class="coaching-empty-desc">
+      Choose Lap A and Lap B on the Laps tab, then open <strong>Zone maps</strong>
+      for a corner-by-corner view or <strong>Analyze with Marcus</strong> for a full coaching report.
     </div>
   </div>`;
 }
@@ -255,10 +255,10 @@ function syncCoachingBar() {
   const elB = document.getElementById('coachLapBDisplay');
   if (elA) elA.textContent = lapA
     ? `Lap ${lapA.lapNumber} · ${lapA.timeStr} · ${lapA.username ? '@' + lapA.username : lapSourceLabel(lapA)}`
-    : '— not set';
+    : 'Not set';
   if (elB) elB.textContent = lapB
     ? `Lap ${lapB.lapNumber} · ${lapB.timeStr} · ${lapB.username ? '@' + lapB.username : lapSourceLabel(lapB)}`
-    : '— not set';
+    : 'Not set';
 
   const btnZ   = document.getElementById('btnPreviewZones');
   const btnA   = document.getElementById('btnAnalyze');

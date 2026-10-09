@@ -6,22 +6,19 @@
   <title>Race Arena · Sign In</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
 
 <!-- ══ HEADER ════════════════════════════════════════════════ -->
 <header class="login-header">
-  <div class="logo">
+  <a class="logo" href="index.html">
     <div class="logo-mark"><div class="logo-mark-text">RA</div></div>
-    <div>
-      <div class="logo-name">Race Arena</div>
-      <div class="logo-sub">racearena.xyz</div>
-    </div>
-  </div>
+    <div class="logo-name">Race Arena</div>
+  </a>
   <div style="margin-left:auto;">
-    <a href="index.html" class="btn" style="font-size:11px;opacity:0.7;">← Back to app</a>
+    <a href="index.html" class="btn">← Back to app</a>
   </div>
 </header>
 
@@ -41,7 +38,7 @@
   <!-- ── Google sign-in ─────────────────────────────────────── -->
   <div class="login-card" id="cardSignIn" style="display:none;">
     <div class="login-card-header">
-      <div class="login-title">Sign In to Race Arena</div>
+      <div class="login-title">Sign in to Race Arena</div>
       <div class="login-subtitle">Upload laps, tag them to your name, and compare with the community</div>
     </div>
     <div class="login-card-body">
@@ -59,15 +56,13 @@
 
       <div class="login-divider">or</div>
 
-      <a href="index.html" class="btn" style="width:100%;justify-content:center;padding:10px;font-size:12px;">
-        Continue as Guest →
-        <span style="color:var(--muted2);font-size:10px;margin-left:4px;">(view &amp; compare only)</span>
+      <a href="index.html" class="btn" style="width:100%;justify-content:center;padding:11px;">
+        Continue as guest
+        <span style="color:var(--muted2);">· view &amp; compare only</span>
       </a>
 
-      <div style="margin-top:16px;padding:10px 12px;border-radius:4px;
-                  background:rgba(0,196,255,0.05);border:1px solid rgba(0,196,255,0.15);
-                  font-size:11px;color:var(--muted);line-height:1.6;">
-        <strong style="color:var(--cyan);">Signed-in members</strong> can upload laps — which are
+      <div class="login-note">
+        <strong>Signed-in members</strong> can upload laps — which are
         stored on the shared backend and tagged with their username for others to compare against.
       </div>
 
@@ -77,7 +72,7 @@
   <!-- ── New user: profile setup (Step 2 after Google auth) ─── -->
   <div class="login-card" id="cardSetup" style="display:none;">
     <div class="login-card-header">
-      <div class="login-title">Set Up Your Profile</div>
+      <div class="login-title">Set up your profile</div>
       <div class="login-subtitle">This is how other drivers will identify you when comparing laps</div>
     </div>
     <div class="login-card-body">
@@ -163,7 +158,7 @@
         <div class="form-hint">Shown on your uploaded laps — you can change it per upload later</div>
       </div>
 
-      <div id="setupError" style="font-size:11px;color:var(--accent);margin-bottom:12px;display:none;"></div>
+      <div id="setupError" style="font-size:13px;color:var(--accent-bright);margin-bottom:12px;display:none;"></div>
 
       <button class="btn btn-primary" id="btnCompleteSetup" disabled>
         <span id="setupBtnText">Enter the Arena →</span>
@@ -180,9 +175,7 @@
       <div class="login-subtitle">Firebase must be configured before sign-in is available</div>
     </div>
     <div class="login-card-body">
-      <div style="padding:14px;border-radius:4px;background:rgba(200,41,58,0.07);
-                  border:1px solid rgba(200,41,58,0.25);font-size:12px;color:var(--muted);line-height:1.7;
-                  margin-bottom:20px;">
+      <div class="login-note is-warning" style="margin:0 0 20px;">
         Open <code style="color:var(--cyan);">js/firebase-config.js</code> and replace the
         placeholder values with your Firebase project credentials.<br><br>
         See the comments in that file for step-by-step setup instructions.
