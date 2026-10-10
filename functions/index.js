@@ -29,8 +29,8 @@ const ALLOWED_ORIGINS = [
   'https://race-arena-d1bc8.firebaseapp.com',
 ];
 
-// Claude model for coaching + tips. Opus-tier reasoning over the corner
-// numbers is worth it here; effort is set per endpoint below.
+// Claude model for coaching + tips. Both run at low effort: the prompts carry
+// pre-computed corner metrics, so speed matters more than deep reasoning.
 const CLAUDE_MODEL = 'claude-opus-5-5';
 
 // ── callMarcus ───────────────────────────────────────────────
@@ -117,7 +117,7 @@ exports.marcus = onRequest(FUNC_OPTS, async (req, res) => {
 
   let text;
   try {
-    text = await callClaude(system, user, { effort: 'medium' });
+    text = await callClaude(system, user, { effort: 'low' });
   } catch (err) {
     const { status, error } = claudeErrorResponse(err);
     console.error('[marcus]', error);
