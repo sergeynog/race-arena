@@ -42,7 +42,7 @@ function renderTrackMap() {
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#101115';
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
   // Find bounding box of all laps
@@ -99,8 +99,8 @@ function renderTrackMap() {
 
   // Draw Lap B first (outline, behind heatmap)
   if (lapB) {
-    ctx.strokeStyle = LAP_B_COLOR + '99';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = LAP_B_COLOR + 'cc';
+    ctx.lineWidth = 2;
     ctx.beginPath();
     let first = true;
     lapB.data.forEach((p, i) => {
@@ -130,12 +130,12 @@ function renderTrackMap() {
 
   // Start marker
   const [sx, sy] = toXY(refLap.data[0].lat, refLap.data[0].lon);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#111111';
   ctx.beginPath();
-  ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+  ctx.arc(sx, sy, 7, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#101115';
-  ctx.font = '600 10px Inter, system-ui';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 10px "Titillium Web", system-ui';
   ctx.textAlign = 'center';
   ctx.fillText('S', sx, sy + 3);
 
@@ -146,8 +146,8 @@ function renderTrackMap() {
 
   const lapLegend = document.getElementById('trackLapLegend');
   let legendHTML = `<div class="legend-item">
-    <div class="legend-swatch" style="background:#fff;"></div>
-    <span style="font-size:13px;color:#fff;">Lap A · ${refLap.timeStr}</span>
+    <div class="legend-swatch" style="background:${LAP_A_COLOR};"></div>
+    <span style="font-size:13px;color:${LAP_A_COLOR};">Lap A · ${refLap.timeStr}</span>
   </div>`;
   if (lapB) {
     legendHTML += `<div class="legend-item">
@@ -205,12 +205,15 @@ function updateTrackCrosshair() {
   const nearest = state.trackRefScreenPts.reduce((b, p) =>
     Math.abs(p.dist - state.crosshairDist) < Math.abs(b.dist - state.crosshairDist) ? p : b);
   ctx.save();
-  ctx.fillStyle = '#fff';
-  ctx.shadowColor = '#fff';
-  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#111111';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 6;
   ctx.beginPath();
   ctx.arc(nearest.x, nearest.y, 6, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.restore();
 }

@@ -465,9 +465,9 @@ function renderCompareBar() {
   if (lapA) {
     const driver = lapA.username ? ` · @${lapA.username}` : ` · ${lapSourceLabel(lapA)}`;
     html += `<div class="compare-chip">
-      <div class="compare-chip-dot" style="background:#fff;"></div>
+      <div class="compare-chip-dot" style="background:var(--lap-a);"></div>
       <span class="compare-chip-label">Lap A</span>
-      <span class="compare-chip-time" style="color:#fff;">${lapA.timeStr}</span>
+      <span class="compare-chip-time" style="color:var(--lap-a);">${lapA.timeStr}</span>
       <span class="compare-chip-meta">Lap ${lapA.lapNumber}${driver}</span>
     </div>`;
   }

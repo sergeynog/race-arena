@@ -23,11 +23,11 @@ function makeChartConfig(label, unit, datasets) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1d2026',
-          borderColor: '#30343c',
+          backgroundColor: '#ffffff',
+          borderColor: '#d6d6d6',
           borderWidth: 1,
-          titleColor: '#9ba1ad',
-          bodyColor: '#e4e6eb',
+          titleColor: '#6b6b6b',
+          bodyColor: '#111111',
           callbacks: {
             title: items => `${Math.round(items[0].parsed.x)} m`,
             label: item => ` ${item.dataset.label}: ${item.parsed.y.toFixed(1)} ${unit}`,
@@ -38,19 +38,19 @@ function makeChartConfig(label, unit, datasets) {
         x: {
           type: 'linear',
           title: { display: false },
-          grid: { color: 'rgba(255,255,255,0.05)' },
+          grid: { color: 'rgba(0,0,0,0.06)' },
           ticks: {
-            color: 'rgba(255,255,255,0.7)',
-            font: { size: 11, weight: '600' },
+            color: '#6b6b6b',
+            font: { family: 'Titillium Web', size: 12, weight: '600' },
             maxTicksLimit: 8,
             callback: v => `${Math.round(v)}m`,
           },
         },
         y: {
-          grid: { color: 'rgba(255,255,255,0.05)' },
+          grid: { color: 'rgba(0,0,0,0.06)' },
           ticks: {
-            color: 'rgba(255,255,255,0.7)',
-            font: { size: 11, weight: '600' },
+            color: '#6b6b6b',
+            font: { family: 'Titillium Web', size: 12, weight: '600' },
             maxTicksLimit: 5,
           },
         },
@@ -116,7 +116,7 @@ Chart.register({
     if (x < chart.chartArea.left - 1 || x > chart.chartArea.right + 1) return;
     const { ctx, chartArea } = chart;
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
     ctx.lineWidth = 1.2;
     ctx.setLineDash([5, 3]);
     ctx.beginPath();
@@ -138,7 +138,7 @@ Chart.register({
       const py = chart.scales.y.getPixelForValue(best.y);
       ctx.beginPath();
       ctx.arc(px, py, 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#16181d';
+      ctx.fillStyle = '#ffffff';
       ctx.fill();
       ctx.strokeStyle = ds.borderColor;
       ctx.lineWidth = 2;

@@ -4,12 +4,12 @@
 // ============================================================
 
 // Bump this string on every deploy you want to verify (shown in footer).
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.10.0';
 
-// Lap A is always white (reference/target line)
-// Lap B is always cyan (comparison line)
-const LAP_A_COLOR = '#ffffff';
-const LAP_B_COLOR = '#00c4ff';
+// Lap A is always near-black (reference/target line)
+// Lap B is always blue (comparison line)
+const LAP_A_COLOR = '#111111';
+const LAP_B_COLOR = '#1d6fe0';
 
 // Club Motorsports (Tamworth, NH) — official corner numbering.
 // Corners 11–15 are high-speed sweepers taken flat-out; no measurable

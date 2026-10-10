@@ -3,6 +3,8 @@
     "origin": [
       "https://race-arena-d1bc8.web.app",
       "https://race-arena-d1bc8.firebaseapp.com",
+      "https://racearena.xyz",
+      "https://www.racearena.xyz",
       "http://localhost:5000"
     ],
     "method": ["GET"],
