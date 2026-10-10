@@ -217,3 +217,54 @@ function updateTrackCrosshair() {
   ctx.shadowBlur = 0;
   ctx.restore();
 }
+
+// ── RESIZABLE MAP PANEL ───────────────────────────────────────
+// Drag (or arrow-key) the panel edge; width is remembered per browser.
+const MAP_WIDTH_KEY = 'raceArena.mapWidth';
+
+(function initMapPanel() {
+  const body   = document.querySelector('.analysis-body');
+  const handle = document.getElementById('mapResizer');
+  const panel  = document.getElementById('analysisMap');
+  const wrap   = document.getElementById('trackCanvasWrap');
+  if (!body || !handle || !panel || !wrap) return;
+
+  const setWidth = w => body.style.setProperty('--map-width', `${Math.round(Math.max(260, Math.min(w, 1400)))}px`);
+  const save = () => { try { localStorage.setItem(MAP_WIDTH_KEY, String(panel.offsetWidth)); } catch {} };
+  try {
+    const saved = parseInt(localStorage.getItem(MAP_WIDTH_KEY), 10);
+    if (saved) setWidth(saved);
+  } catch {}
+
+  handle.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    body.classList.add('is-resizing');
+    const move = ev => setWidth(body.getBoundingClientRect().right - ev.clientX);
+    const up = () => {
+      body.classList.remove('is-resizing');
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      save();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+  });
+  handle.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 80 : 20;
+    if (e.key === 'ArrowLeft') setWidth(panel.offsetWidth + step);
+    else if (e.key === 'ArrowRight') setWidth(panel.offsetWidth - step);
+    else return;
+    e.preventDefault();
+    save();
+  });
+
+  // Redraw when the map's box changes size (drag, window resize, tab shown)
+  let pending = null;
+  new ResizeObserver(() => {
+    clearTimeout(pending);
+    pending = setTimeout(() => {
+      if (wrap.clientWidth > 0 && document.getElementById('trackCanvas')) renderTrackMap();
+    }, 80);
+  }).observe(wrap);
+})();

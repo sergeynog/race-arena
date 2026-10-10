@@ -144,37 +144,40 @@
         <button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">Choose laps</button>
       </div>
 
-      <!-- Track map row -->
-      <div class="analysis-map-row">
-        <div class="track-canvas-wrap" id="trackCanvasWrap">
+      <!-- Charts (scroll) + track map side panel (drag the edge to resize) -->
+      <div class="analysis-body">
+        <div class="charts-grid" id="chartsGrid">
           <div class="empty-state">
             <div class="empty-title">No laps selected</div>
-            <div class="empty-desc">Choose two laps on the Laps tab to see the GPS track map.</div>
+            <div class="empty-desc">Choose Lap A and Lap B on the Laps tab.</div>
           </div>
         </div>
-        <div class="track-legend" id="trackLegend" style="display:none;">
-          <div class="section-label">Speed</div>
-          <div class="speed-scale">
-            <div class="speed-gradient"></div>
-            <div class="speed-scale-labels">
-              <span id="speedMax">—</span>
-              <span id="speedMid">—</span>
-              <span id="speedMin">0</span>
+
+        <div class="map-resizer" id="mapResizer" role="separator" aria-orientation="vertical"
+             aria-label="Resize track map" tabindex="0" title="Drag to resize the map"></div>
+
+        <aside class="analysis-map" id="analysisMap">
+          <div class="track-canvas-wrap" id="trackCanvasWrap">
+            <div class="empty-state">
+              <div class="empty-title">No laps selected</div>
+              <div class="empty-desc">Choose two laps on the Laps tab to see the GPS track map.</div>
             </div>
           </div>
-          <div class="section-label">Laps</div>
-          <div id="trackLapLegend"></div>
-          <div class="track-legend-hint">Click the track to move the chart crosshair.</div>
-        </div>
-      </div><!-- /.analysis-map-row -->
-
-      <!-- Scrollable telemetry charts grid -->
-      <div class="charts-grid" id="chartsGrid">
-        <div class="empty-state">
-          <div class="empty-title">No laps selected</div>
-          <div class="empty-desc">Choose Lap A and Lap B on the Laps tab.</div>
-        </div>
-      </div>
+          <div class="track-legend" id="trackLegend" style="display:none;">
+            <div class="section-label">Speed</div>
+            <div class="speed-scale">
+              <div class="speed-gradient"></div>
+              <div class="speed-scale-labels">
+                <span id="speedMax">—</span>
+                <span id="speedMid">—</span>
+                <span id="speedMin">0</span>
+              </div>
+            </div>
+            <div id="trackLapLegend"></div>
+            <div class="track-legend-hint">Hover a chart or click the track to move the marker.</div>
+          </div>
+        </aside>
+      </div><!-- /.analysis-body -->
 
     </div><!-- /#panel-charts -->
 
