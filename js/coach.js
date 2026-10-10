@@ -210,7 +210,7 @@ async function callClaude(systemPrompt, userPrompt) {
 
   const idToken = await state.currentUser.getIdToken();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const timeout = setTimeout(() => controller.abort(), 240_000);  // function allows 300 s
 
   let res;
   try {
@@ -225,7 +225,7 @@ async function callClaude(systemPrompt, userPrompt) {
     });
   } catch (err) {
     clearTimeout(timeout);
-    if (err.name === 'AbortError') throw new Error('Analysis timed out (90 s). Please try again.');
+    if (err.name === 'AbortError') throw new Error('Analysis timed out (4 min). Please try again.');
     throw new Error('Network error — check your connection or disable ad blockers for this site.');
   }
   clearTimeout(timeout);

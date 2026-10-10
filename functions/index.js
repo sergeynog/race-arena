@@ -16,15 +16,22 @@
 const { onRequest }   = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const admin            = require('firebase-admin');
+const Anthropic        = require('@anthropic-ai/sdk').default;
 
 admin.initializeApp();
 
 const ANTHROPIC_KEY = defineSecret('ANTHROPIC_KEY');
 
 const ALLOWED_ORIGINS = [
+  'https://racearena.xyz',
+  'https://www.racearena.xyz',
   'https://race-arena-d1bc8.web.app',
   'https://race-arena-d1bc8.firebaseapp.com',
 ];
+
+// Claude model for coaching + tips. Opus-tier reasoning over the corner
+// numbers is worth it here; effort is set per endpoint below.
+const CLAUDE_MODEL = 'claude-opus-5-5';
 
 // ── callMarcus ───────────────────────────────────────────────
 // HTTP function (onRequest).  Verifies Firebase ID token from
@@ -58,28 +65,40 @@ async function authenticateRequest(req, res) {
   }
 }
 
-async function callAnthropic(system, user, { maxTokens = 1500, model = 'claude-sonnet-4-20250514' } = {}) {
-  const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type':      'application/json',
-      'x-api-key':         ANTHROPIC_KEY.value(),
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      system,
-      messages: [{ role: 'user', content: user }],
-    }),
+// Returns the reply text. Throws Anthropic.APIError on API failures and a
+// plain Error when the model declines (stop_reason "refusal").
+async function callClaude(system, user, { effort = 'medium' } = {}) {
+  const client = new Anthropic({ apiKey: ANTHROPIC_KEY.value() });
+  const msg = await client.beta.messages.create({
+    model: CLAUDE_MODEL,
+    max_tokens: 16000,
+    output_config: { effort },
+    // Re-run on Anthropic's recommended model if a safety classifier declines
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system,
+    messages: [{ role: 'user', content: user }],
   });
-  return apiRes;
+  if (msg.stop_reason === 'refusal') {
+    throw new Error('Marcus could not answer this request. Please try again.');
+  }
+  // Thinking blocks come first; join only the text blocks
+  return msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
+}
+
+// Maps an SDK error to an HTTP status + message for the browser.
+function claudeErrorResponse(err) {
+  if (err instanceof Anthropic.APIError) {
+    const msg = err.error?.error?.message || err.message;
+    return { status: err.status === 429 ? 429 : 502, error: `Anthropic API: ${msg}` };
+  }
+  return { status: 502, error: err.message || 'Could not reach Anthropic API.' };
 }
 
 const FUNC_OPTS = {
   secrets:        [ANTHROPIC_KEY],
   region:         'us-central1',
-  timeoutSeconds: 120,
+  timeoutSeconds: 300,   // Opus with thinking can take a minute or two
   memory:         '256MiB',
 };
 
@@ -96,26 +115,15 @@ exports.marcus = onRequest(FUNC_OPTS, async (req, res) => {
   }
   console.log(`[marcus] uid=${decoded.uid} system=${system.length} user=${user.length}`);
 
-  let apiRes;
+  let text;
   try {
-    apiRes = await callAnthropic(system, user, { maxTokens: 1500 });
+    text = await callClaude(system, user, { effort: 'medium' });
   } catch (err) {
-    console.error('[marcus] Network error:', err);
-    res.status(503).json({ error: 'Could not reach Anthropic API.' });
+    const { status, error } = claudeErrorResponse(err);
+    console.error('[marcus]', error);
+    res.status(status).json({ error });
     return;
   }
-
-  console.log(`[marcus] Anthropic ${apiRes.status} (+${Date.now() - t0}ms)`);
-  if (!apiRes.ok) {
-    let msg = `Anthropic API error ${apiRes.status}`;
-    try { msg = (await apiRes.json()).error?.message || msg; } catch {}
-    console.error('[marcus]', msg);
-    res.status(500).json({ error: msg });
-    return;
-  }
-
-  const data = await apiRes.json();
-  const text = data.content?.[0]?.text || '';
   console.log(`[marcus] Done, ${text.length} chars (+${Date.now() - t0}ms)`);
   res.json({ content: text });
 });
@@ -133,26 +141,16 @@ exports.marcusTips = onRequest(FUNC_OPTS, async (req, res) => {
   }
   console.log(`[tips] uid=${decoded.uid} prompt=${user.length}`);
 
-  let apiRes;
+  let text;
   try {
-    apiRes = await callAnthropic(system, user, { maxTokens: 1200 });
+    text = await callClaude(system, user, { effort: 'low' });
   } catch (err) {
-    console.error('[tips] Network error:', err);
-    res.status(503).json({ error: 'Could not reach Anthropic API.' });
+    const { status, error } = claudeErrorResponse(err);
+    console.error('[tips]', error);
+    res.status(status).json({ error });
     return;
   }
-
-  console.log(`[tips] Anthropic ${apiRes.status} (+${Date.now() - t0}ms)`);
-  if (!apiRes.ok) {
-    let msg = `Anthropic API error ${apiRes.status}`;
-    try { msg = (await apiRes.json()).error?.message || msg; } catch {}
-    console.error('[tips]', msg);
-    res.status(500).json({ error: msg });
-    return;
-  }
-
-  const data = await apiRes.json();
-  const text = data.content?.[0]?.text || '';
+  console.log(`[tips] Claude done (+${Date.now() - t0}ms)`);
 
   // Persist to Firestore: users/{uid}/tips/current
   try {

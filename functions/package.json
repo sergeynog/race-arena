@@ -2,8 +2,11 @@
   "name": "race-arena-functions",
   "description": "Race Arena Firebase Cloud Functions",
   "main": "index.js",
-  "engines": { "node": "20" },
+  "engines": {
+    "node": "20"
+  },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "firebase-admin": "^12.0.0",
     "firebase-functions": "^6.0.0"
   }

@@ -197,7 +197,7 @@ async function updateRacingTips(coachingReport, lapA, lapB) {
 
   const idToken = await state.currentUser.getIdToken();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const timeout = setTimeout(() => controller.abort(), 240_000);  // function allows 300 s
 
   try {
     const res = await fetch(TIPS_URL, {
