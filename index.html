@@ -37,6 +37,9 @@
   <div id="userHeaderChip"></div>
 </header>
 
+<!-- ══ LAP KEY — which colour/line is Lap A vs Lap B (all tabs) ══ -->
+<div class="lap-key" id="lapKey" hidden aria-label="Compared laps"></div>
+
 <!-- ══ BODY LAYOUT ═════════════════════════════════════════ -->
 <div class="layout">
   <div class="main">
@@ -78,11 +81,13 @@
           <div class="compare-row">
             <div class="lap-slots">
               <div class="lap-slot slot-a">
+                <span class="lap-swatch a" aria-hidden="true"></span>
                 <span class="lap-slot-label">Lap A</span>
                 <span class="lap-slot-value" id="slotAValue">Not selected</span>
                 <button class="lap-slot-clear" id="slotAClear" style="display:none;" title="Clear Lap A" aria-label="Clear Lap A">×</button>
               </div>
               <div class="lap-slot slot-b">
+                <span class="lap-swatch b" aria-hidden="true"></span>
                 <span class="lap-slot-label">Lap B</span>
                 <span class="lap-slot-value" id="slotBValue">Not selected</span>
                 <button class="lap-slot-clear" id="slotBClear" style="display:none;" title="Clear Lap B" aria-label="Clear Lap B">×</button>
@@ -138,12 +143,6 @@
     <!-- ═══ PANEL: ANALYSIS ═════════════════════════════════ -->
     <div class="panel" id="panel-charts">
 
-      <!-- Compare bar — Lap A / Lap B chips + delta + change laps -->
-      <div class="lap-compare-bar" id="lapCompareBar">
-        <span class="compare-hint">Pick Lap A and Lap B on the Laps tab to compare them.</span>
-        <button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">Choose laps</button>
-      </div>
-
       <!-- Charts (scroll) + track map side panel (drag the edge to resize) -->
       <div class="analysis-body">
         <div class="charts-grid" id="chartsGrid">
@@ -164,8 +163,13 @@
             </div>
           </div>
           <div class="track-legend" id="trackLegend" style="display:none;">
-            <div class="section-label">Speed</div>
-            <div class="speed-scale">
+            <div class="map-mode" role="group" aria-label="Line colours">
+              <span class="section-label">Lines</span>
+              <button class="map-mode-btn is-active" data-mode="laps">Laps</button>
+              <button class="map-mode-btn" data-mode="speed">Speed</button>
+            </div>
+            <div id="trackLapLegend"></div>
+            <div class="speed-scale" id="speedLegend" hidden>
               <div class="speed-gradient"></div>
               <div class="speed-scale-labels">
                 <span id="speedMax">—</span>
@@ -173,7 +177,6 @@
                 <span id="speedMin">0</span>
               </div>
             </div>
-            <div id="trackLapLegend"></div>
             <div class="track-legend-hint">Hover a chart or click the track to move the marker.</div>
           </div>
         </aside>
@@ -187,17 +190,7 @@
 
         <!-- Controls bar — read-only Lap A/B + action buttons -->
         <div class="coaching-controls">
-          <div class="cc-group">
-            <span class="cc-dot" style="background:var(--lap-a);"></span>
-            <span class="cc-label">Lap A</span>
-            <span class="cc-value" id="coachLapADisplay">Not set</span>
-          </div>
-          <div class="cc-group">
-            <span class="cc-dot" style="background:var(--cyan);"></span>
-            <span class="cc-label">Lap B</span>
-            <span class="cc-value" id="coachLapBDisplay">Not set</span>
-          </div>
-          <button class="btn btn-sm btn-ghost" onclick="switchTab('laps')">Change</button>
+          <span class="cc-hint">Compare the two laps in the key above, corner by corner or with Marcus.</span>
           <div class="cc-actions">
             <span id="coachSignInNotice" class="cc-hint" style="display:none;">
               <a href="login.html">Sign in</a> to use Marcus

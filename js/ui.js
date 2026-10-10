@@ -1,7 +1,7 @@
 // ============================================================
 // UI RENDERING
 // Race Arena — ui.js
-// Renders the Lap Selector tab, compare bar, bulk actions and
+// Renders the Lap Selector tab, lap key, bulk actions and
 // user header chip.  Now supports cloud laps + sort controls.
 // ============================================================
 
@@ -447,59 +447,55 @@ async function showDriverPopup(username, anchorEl) {
   setTimeout(() => document.addEventListener('click', close), 0);
 }
 
-// ── COMPARE BAR ──────────────────────────────────────────────
+// ── LAP KEY ───────────────────────────────────────────────────
+// Under the header on every tab: which colour and line style is Lap A vs
+// Lap B, plus the overall gap. Lap A = blue solid, Lap B = green dashed.
 
-function renderCompareBar() {
-  const bar = document.getElementById('lapCompareBar');
-  if (!bar) return;
+function renderLapKey() {
+  const key = document.getElementById('lapKey');
+  if (!key) return;
   const lapA = getLapA();
   const lapB = getLapB();
+  key.hidden = !lapA && !lapB;
+  if (key.hidden) return;
 
-  if (!lapA && !lapB) {
-    bar.innerHTML = `<span class="compare-hint">Pick Lap A and Lap B on the Laps tab to compare them.</span>
-      <button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">Choose laps</button>`;
-    return;
-  }
-
-  let html = '';
-
-  if (lapA) {
-    const driver = lapA.username ? ` · @${lapA.username}` : ` · ${lapSourceLabel(lapA)}`;
-    html += `<div class="compare-chip">
-      <div class="compare-chip-dot" style="background:var(--lap-a);"></div>
-      <span class="compare-chip-label">Lap A</span>
-      <span class="compare-chip-time" style="color:var(--lap-a);">${lapA.timeStr}</span>
-      <span class="compare-chip-meta">Lap ${lapA.lapNumber}${driver}</span>
-    </div>`;
-  }
-
-  if (lapB) {
-    let delta = '';
-    if (lapA) {
-      const diff = lapB.timeSeconds - lapA.timeSeconds;
-      const sign = diff >= 0 ? '+' : '';
-      const cls  = diff >= 0 ? 'delta-slower' : 'delta-faster';
-      delta = `<span class="${cls} compare-chip-delta">${sign}${diff.toFixed(3)}s</span>`;
+  const item = (lap, which) => {
+    const cls = which.toLowerCase();
+    if (!lap) {
+      return `<div class="lap-key-item ${cls} is-empty">
+        <span class="lap-swatch ${cls}"></span>
+        <span class="lap-key-label lap-name-${cls}">Lap ${which}</span>
+        <span class="lap-key-meta">not selected</span>
+      </div>`;
     }
-    const driver = lapB.username ? ` · @${lapB.username}` : ` · ${lapSourceLabel(lapB)}`;
-    html += `<div class="compare-chip">
-      <div class="compare-chip-dot" style="background:var(--cyan);"></div>
-      <span class="compare-chip-label">Lap B</span>
-      <span class="compare-chip-time" style="color:var(--cyan);">${lapB.timeStr}</span>
-      ${delta}
-      <span class="compare-chip-meta">Lap ${lapB.lapNumber}${driver}</span>
+    const who  = lap.username ? `@${lap.username}` : lapSourceLabel(lap);
+    const meta = [`Lap ${lap.lapNumber}`, who, lap.vehicle].filter(Boolean).map(escapeHtml).join(' · ');
+    return `<div class="lap-key-item ${cls}">
+      <span class="lap-swatch ${cls}"></span>
+      <span class="lap-key-label lap-name-${cls}">Lap ${which}</span>
+      <span class="lap-key-time lap-name-${cls}">${escapeHtml(lap.timeStr || '')}</span>
+      <span class="lap-key-meta">${meta}</span>
+      <span class="lap-key-style">${cls === 'a' ? 'blue · solid line' : 'green · dashed line'}</span>
     </div>`;
+  };
+
+  let gap = '';
+  if (lapA && lapB && isFinite(lapA.timeSeconds) && isFinite(lapB.timeSeconds)) {
+    const d = lapB.timeSeconds - lapA.timeSeconds;
+    gap = Math.abs(d) < 0.0005
+      ? `<span class="lap-key-gap">Identical times</span>`
+      : `<span class="lap-key-gap ${d > 0 ? 'delta-a-ahead' : 'delta-b-ahead'}">Lap ${d > 0 ? 'A' : 'B'} faster by ${Math.abs(d).toFixed(3)} s</span>`;
   }
 
-  html += `<button class="btn btn-sm" style="margin-left:auto;" onclick="switchTab('laps')">Change laps</button>`;
-  bar.innerHTML = html;
+  key.innerHTML = `${item(lapA, 'A')}${item(lapB, 'B')}${gap}
+    <button class="btn btn-sm" onclick="switchTab('laps')">Change laps</button>`;
 }
 
 // ── MASTER UPDATE ─────────────────────────────────────────────
 
 function updateAll() {
   renderLapSelector();
-  renderCompareBar();
+  renderLapKey();
   renderUserHeader();
 
   const pairChanged = state.lastRenderedPair.a !== state.lapA ||

@@ -85,7 +85,8 @@
   max-width: 420px;
 }
 .slot-a:has(.has-lap) { border-left-color: var(--lap-a); }
-.slot-b:has(.has-lap) { border-left-color: var(--cyan); }
+.slot-b { border-left-style: dashed; }
+.slot-b:has(.has-lap) { border-left-color: var(--lap-b); }
 .lap-slot-label {
   font-family: var(--font-display);
   font-stretch: 125%;
@@ -97,7 +98,8 @@
   flex-shrink: 0;
   color: var(--muted);
 }
-.slot-b .lap-slot-label { color: var(--cyan); }
+.slot-a .lap-slot-label { color: var(--lap-a); }
+.slot-b .lap-slot-label { color: var(--lap-b); }
 .lap-slot-value {
   font-size: 15px;
   flex: 1;
@@ -208,8 +210,8 @@
 }
 .lap-selector-table tbody tr { transition: background 0.1s; }
 .lap-selector-table tbody tr:hover td { background: var(--surface); }
-.lap-selector-table tbody tr.is-lap-a td { background: rgba(0,0,0,0.04); }
-.lap-selector-table tbody tr.is-lap-b td { background: var(--cyan-soft); }
+.lap-selector-table tbody tr.is-lap-a td { background: var(--lap-a-soft); }
+.lap-selector-table tbody tr.is-lap-b td { background: var(--lap-b-soft); }
 .lap-selector-table tbody tr.is-selected td { background: #fdf0ef; }
 .lap-selector-table tr > :first-child,
 .lap-selector-table:not(.has-own-laps) tr > :nth-child(2) { padding-left: 24px !important; }
@@ -281,7 +283,7 @@
 }
 .slot-btn:hover { border-color: var(--ink); color: var(--ink); }
 .slot-btn.active-a { border-color: var(--lap-a); background: var(--lap-a); color: #fff; }
-.slot-btn.active-b { border-color: var(--cyan); background: var(--cyan); color: #fff; }
+.slot-btn.active-b { border-color: var(--lap-b); background: var(--lap-b); color: #fff; }
 
 /* ── ROW DELETE ──────────────────────────────────────────── */
 .lap-delete-btn {
@@ -312,9 +314,8 @@ tr:hover .lap-delete-btn,
   color: var(--fg);
   margin-right: 10px;
 }
-.lap-time-cell.is-best { color: var(--green); }
 .lap-time-cell.is-lap-a { color: var(--lap-a); }
-.lap-time-cell.is-lap-b { color: var(--cyan); }
+.lap-time-cell.is-lap-b { color: var(--lap-b); }
 .lap-time-cell + .lap-badge + .lap-badge { margin-left: 4px; }
 
 .lap-session-cell { color: var(--silver); font-size: 15px; }

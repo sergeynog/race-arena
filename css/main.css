@@ -18,7 +18,11 @@
   --accent-dim: #a5160b;
   --accent-soft: rgba(218,41,28,0.08);
   --accent-glow: rgba(218,41,28,0.2);
-  --lap-a: #111111;
+  /* Compared laps — used only for Lap A / Lap B (A solid, B dashed) */
+  --lap-a: #1d6fe0;
+  --lap-a-soft: rgba(29,111,224,0.09);
+  --lap-b: #16a34a;
+  --lap-b-soft: rgba(22,163,74,0.10);
   --cyan: #1d6fe0;           /* Lap B blue (name kept for existing markup) */
   --cyan-soft: rgba(29,111,224,0.08);
   --cyan-glow: rgba(29,111,224,0.25);
@@ -38,7 +42,7 @@
   --font-mono: 'Archivo', 'Titillium Web', system-ui, sans-serif;
   --radius: 2px;
   --radius-sm: 2px;
-  --focus: 0 0 0 2px #fff, 0 0 0 4px var(--cyan);
+  --focus: 0 0 0 2px #fff, 0 0 0 4px var(--ink);
 }
 
 /* Wide, spaced capitals — the signature heading style */
@@ -289,8 +293,9 @@ header .btn-ghost:hover { background: transparent; border-color: transparent; co
   font-weight: 700;
   padding: 2px 8px;
 }
-.delta-faster { color: var(--green); background: var(--green-soft); }
-.delta-slower { color: var(--accent-bright); background: var(--accent-soft); }
+/* Gap pill: coloured by which lap is ahead */
+.delta-a-ahead { color: var(--lap-a); background: var(--lap-a-soft); }
+.delta-b-ahead { color: var(--lap-b); background: var(--lap-b-soft); }
 
 /* ── EMPTY STATE ─────────────────────────────────────────── */
 .empty-state {
@@ -390,7 +395,7 @@ header .btn-ghost:hover { background: transparent; border-color: transparent; co
 /* ── NOTICE ──────────────────────────────────────────────── */
 .notice {
   background: var(--surface);
-  border-left: 2px solid var(--cyan);
+  border-left: 2px solid var(--ink);
   padding: 8px 12px;
   font-size: 14px;
   color: var(--text);
@@ -408,7 +413,7 @@ header .btn-ghost:hover { background: transparent; border-color: transparent; co
   letter-spacing: 0.1em;
   vertical-align: 2px;
 }
-.badge-best { background: var(--green); color: #fff; }
+.badge-best { background: var(--ink); color: #fff; }
 .badge-outlap { background: var(--card2); color: var(--muted); }
 
 /* ── DRIVER PILL — inline username in lap table ─────────── */
@@ -423,7 +428,7 @@ header .btn-ghost:hover { background: transparent; border-color: transparent; co
   transition: color 0.15s, text-decoration-color 0.15s;
   display: inline-block;
 }
-.lap-driver-pill.is-me { color: var(--cyan); text-decoration-color: rgba(29,111,224,0.35); }
+.lap-driver-pill.is-me { color: var(--fg); font-weight: 700; text-decoration-color: var(--fg); }
 .lap-driver-pill:hover { color: var(--fg); text-decoration-color: var(--fg); }
 
 /* ── DRIVER CARD — profile popup ────────────────────────────── */
@@ -459,7 +464,7 @@ header .btn-ghost:hover { background: transparent; border-color: transparent; co
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.driver-card-username { font-size: 14px; color: var(--cyan); }
+.driver-card-username { font-size: 14px; color: var(--muted); }
 .driver-card-meta {
   display: flex;
   align-items: center;
@@ -576,4 +581,73 @@ header .btn-ghost:hover { background: transparent; border-color: transparent; co
   .tab-bar { order: 3; width: calc(100% + 32px); margin: 0 -16px; padding: 0 16px; gap: 22px; border-top: 1px solid rgba(255,255,255,0.12); }
   .tab { height: 44px; font-size: 11.5px; }
   .user-name { display: none; }
+}
+
+/* ── LAP SWATCHES — line samples for legends (A solid, B dashed) ── */
+.lap-swatch {
+  display: inline-block;
+  width: 26px;
+  height: 0;
+  border-top: 3px solid var(--lap-a);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.lap-swatch.b { border-top: 3px dashed var(--lap-b); }
+.lap-name-a { color: var(--lap-a); }
+.lap-name-b { color: var(--lap-b); }
+
+/* ── LAP KEY — which line is which, under the header on every tab ── */
+.lap-key {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px 22px;
+  flex-wrap: wrap;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.lap-key[hidden] { display: none; }
+.lap-key-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--lap-a);
+}
+.lap-key-item.b { border-left: 3px dashed var(--lap-b); }
+.lap-key-item.is-empty { border-left-color: var(--border2); }
+.lap-key-label {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.lap-key-time {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 19px;
+}
+.lap-key-meta { color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lap-key-style { color: var(--muted2); font-size: 12.5px; white-space: nowrap; }
+.lap-key-gap {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.lap-key .btn { margin-left: auto; }
+@media (max-width: 900px) {
+  .lap-key { padding: 8px 16px; gap: 6px 14px; }
+  .lap-key-time { font-size: 16px; }
+  .lap-key-style, .lap-key-meta { display: none; }
 }

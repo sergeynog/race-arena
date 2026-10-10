@@ -4,12 +4,13 @@
 // ============================================================
 
 // Bump this string on every deploy you want to verify (shown in footer).
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
 
-// Lap A is always near-black (reference/target line)
-// Lap B is always blue (comparison line)
-const LAP_A_COLOR = '#111111';
-const LAP_B_COLOR = '#1d6fe0';
+// Lap A is always blue with a solid line, Lap B always green with a dashed
+// line — on every chart, map, table and legend. Blue/green mean nothing else.
+const LAP_A_COLOR = '#1d6fe0';
+const LAP_B_COLOR = '#16a34a';
+const LAP_B_DASH  = [7, 5];          // canvas dash pattern for Lap B (px at 1×)
 
 // Club Motorsports (Tamworth, NH) — all 15 official turns, using the
 // numbering on the track map at clubmotorsports.com (turns 2 and 9 are

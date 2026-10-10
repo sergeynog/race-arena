@@ -265,14 +265,6 @@ function syncCoachingBar() {
   const hasPair = !!(lapA && lapB);
   const hasUser = !!state.currentUser;
 
-  const elA = document.getElementById('coachLapADisplay');
-  const elB = document.getElementById('coachLapBDisplay');
-  if (elA) elA.textContent = lapA
-    ? `Lap ${lapA.lapNumber} · ${lapA.timeStr} · ${lapA.username ? '@' + lapA.username : lapSourceLabel(lapA)}`
-    : 'Not set';
-  if (elB) elB.textContent = lapB
-    ? `Lap ${lapB.lapNumber} · ${lapB.timeStr} · ${lapB.username ? '@' + lapB.username : lapSourceLabel(lapB)}`
-    : 'Not set';
 
   const btnZ   = document.getElementById('btnPreviewZones');
   const btnA   = document.getElementById('btnAnalyze');

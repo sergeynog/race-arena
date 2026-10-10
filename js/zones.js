@@ -31,43 +31,12 @@ function closestPoint(data, dist) {
   return best;
 }
 
-function metricColor(v, t, metric) {
-  // t = 0..1 normalized value
-  if (metric === 'brake') {
-    // 0 = dark blue, 0.5 = orange, 1 = red
-    if (t < 0.5) {
-      const u = t * 2;
-      return [Math.round(u * 255), Math.round(u * 120), Math.round((1 - u) * 220)];
-    } else {
-      const u = (t - 0.5) * 2;
-      return [255, Math.round((1 - u) * 120), 0];
-    }
-  } else {
-    // speed: blue→cyan→green→yellow→red
-    if (t < 0.25) {
-      const u = t / 0.25;
-      return [0, Math.round(64 + u * 132), 255];
-    } else if (t < 0.5) {
-      const u = (t - 0.25) / 0.25;
-      return [0, Math.round(196 + u * 28), Math.round(255 - u * 137)];
-    } else if (t < 0.75) {
-      const u = (t - 0.5) / 0.25;
-      return [Math.round(u * 255), Math.round(224 - u * 109), Math.round(118 - u * 118)];
-    } else {
-      const u = (t - 0.75) / 0.25;
-      return [Math.round(200 + u * 55), Math.round(115 - u * 74), 0];
-    }
-  }
-}
-
-function drawZoneCanvas(canvas, refSeg, compSeg, metric, events) {
+function drawZoneCanvas(canvas, refSeg, compSeg) {
   const ctx = canvas.getContext('2d');
   ctx.save();
-  // Scale from original 480×300 logical space → actual canvas size for crisp output
+  // Scale from 480×300 logical space → actual canvas size for crisp output
   ctx.scale(canvas.width / 480, canvas.height / 300);
   const W = 480, H = 300;
-  const LEGEND_H = 32;
-  const DRAW_H = H - LEGEND_H;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
@@ -82,341 +51,160 @@ function drawZoneCanvas(canvas, refSeg, compSeg, metric, events) {
     if (p.lon > maxLon) maxLon = p.lon;
   });
 
-  const PAD = 28;
+  const PAD = 30;
   const latR = maxLat - minLat || 0.0001;
   const lonR = maxLon - minLon || 0.0001;
-  const scale = Math.min((W - PAD * 2) / lonR, (DRAW_H - PAD * 2) / latR);
+  const scale = Math.min((W - PAD * 2) / lonR, (H - PAD * 2) / latR);
+  const offX = (W - PAD * 2 - lonR * scale) / 2;
+  const offY = (H - PAD * 2 - latR * scale) / 2;
   const toXY = (lat, lon) => ({
-    x: PAD + (lon - minLon) * scale,
-    y: DRAW_H - PAD - (lat - minLat) * scale,
+    x: PAD + offX + (lon - minLon) * scale,
+    y: H - PAD - offY - (lat - minLat) * scale,
   });
-
-  const allVals = [...refSeg, ...compSeg].map(p => p[metric]).filter(v => isFinite(v));
-  const minVal = Math.min(...allVals), maxVal = Math.max(...allVals);
-  const valRange = maxVal - minVal || 1;
-  const norm = v => Math.max(0, Math.min(1, (v - minVal) / valRange));
-  const toColor = (v, a = 1) => { const [r, g, b] = metricColor(v, norm(v), metric); return `rgba(${r},${g},${b},${a})`; };
-
   const toXYArr = seg => seg
     .filter(p => p.lat && p.lon && !(p.lat === 0 && p.lon === 0))
-    .map(p => ({ ...toXY(p.lat, p.lon), val: p[metric] || 0 }));
+    .map(p => ({ ...toXY(p.lat, p.lon), speed: p.speed }));
 
-  const refXY  = toXYArr(refSeg);
-  const compXY = toXYArr(compSeg);
-  const OFFSET_PX = 22;
-  const compOff = computeOffsetPath(compXY, OFFSET_PX);
+  const refXY   = toXYArr(refSeg);
+  const compXY  = toXYArr(compSeg);
+  const compOff = computeOffsetPath(compXY, 14).map((p, i) => ({ ...p, speed: compXY[i].speed }));
 
-  const drawSolidPath = (pts, color, lw) => {
+  const path = (pts, color, lw, dash = []) => {
     if (pts.length < 2) return;
-    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round';
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.setLineDash(dash);
     ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
     pts.forEach((p, i) => { if (i > 0) ctx.lineTo(p.x, p.y); });
     ctx.stroke();
-  };
-
-  // Ghost tracks for context
-  drawSolidPath(refXY,   'rgba(0,0,0,0.07)', 8);
-  drawSolidPath(compOff, 'rgba(0,0,0,0.07)', 8);
-
-  // Draw Lap B colored by metric (offset)
-  for (let i = 1; i < compOff.length; i++) {
-    const p0 = compOff[i - 1], p1 = compOff[i];
-    ctx.strokeStyle = toColor(p0.val, 1);
-    ctx.lineWidth = 4; ctx.lineJoin = 'round';
     ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-  }
-  // Draw Lap A colored by metric
-  for (let i = 1; i < refXY.length; i++) {
-    const p0 = refXY[i - 1], p1 = refXY[i];
-    ctx.strokeStyle = toColor(p0.val, 1);
-    ctx.lineWidth = 4; ctx.lineJoin = 'round';
-    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // Line labels: Lap A at entry (3%), Lap B at exit (96%)
-  const drawLineLabel = (pts, label, color, frac) => {
-    if (pts.length < 4) return;
-    const idx = Math.max(0, Math.min(pts.length - 1, Math.floor(pts.length * frac)));
-    const p = pts[idx];
-    ctx.font = '600 11px Inter, system-ui';
-    const tw = ctx.measureText(label).width;
-    const pad = 4, bh = 13;
-    let lx = Math.max(2, Math.min(W - tw - pad*2 - 2, p.x - pad));
-    let ly = Math.max(bh/2 + 2, Math.min(DRAW_H - bh/2 - 2, p.y));
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.beginPath(); ctx.roundRect(lx, ly - bh/2, tw + pad*2, bh, 3); ctx.fill();
-    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = color; ctx.textAlign = 'left';
-    ctx.fillText(label, lx + pad, ly + 4);
-  };
-  drawLineLabel(refXY,   '━ Lap A', LAP_A_COLOR, 0.03);
-  drawLineLabel(compOff, '━ Lap B', LAP_B_COLOR, 0.96);
-
-  // Event markers
-  const drawMarker = (x, y, shape, color, glowColor, r, label, labelColor) => {
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur  = 8;
-    ctx.fillStyle   = color;
-    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath();
-    if (shape === 'diamond') {
-      ctx.moveTo(x, y - r); ctx.lineTo(x + r, y);
-      ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
-    } else if (shape === 'square') {
-      ctx.rect(x - r, y - r, r * 2, r * 2);
-    } else {
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-    }
-    ctx.fill(); ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    if (label) {
-      ctx.font = '600 11px Inter, system-ui';
-      const tw = ctx.measureText(label).width;
-      const margin = 6;
-      let lx = x + r + margin;
-      if (lx + tw + 4 > W - 4) lx = x - r - margin - tw - 2;
-      let ly = y + 4;
-      if (ly > DRAW_H - 4) ly = y - r - 4;
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.beginPath();
-      ctx.roundRect(lx - 2, ly - 10, tw + 6, 13, 3);
-      ctx.fill();
-      ctx.fillStyle = labelColor || '#111111';
-      ctx.textAlign = 'left';
-      ctx.fillText(label, lx, ly);
-    }
   };
 
-  events.forEach(ev => {
-    if (!ev.lat || !ev.lon) return;
-    let sx, sy;
-    if (ev.isRef) {
-      const { x, y } = toXY(ev.lat, ev.lon); sx = x; sy = y;
-    } else {
-      const { x: rx, y: ry } = toXY(ev.lat, ev.lon);
-      let bestIdx = 0, bestDist = Infinity;
-      compXY.forEach((p, i) => {
-        const d = (p.x - rx) ** 2 + (p.y - ry) ** 2;
-        if (d < bestDist) { bestDist = d; bestIdx = i; }
-      });
-      sx = compOff[bestIdx]?.x ?? rx;
-      sy = compOff[bestIdx]?.y ?? ry;
-    }
-    drawMarker(sx, sy, ev.shape, ev.color, ev.glow || ev.color, ev.r || 7, ev.label, ev.labelColor || ev.color);
-  });
+  // Faint track ribbon for context, then the two laps
+  path(refXY, 'rgba(0,0,0,0.06)', 22);
+  path(refXY,   LAP_A_COLOR, 4);
+  path(compOff, LAP_B_COLOR, 4, LAP_B_DASH);
 
-  // Direction arrow
+  // Direction of travel
   if (refXY.length > 8) {
     const idx = Math.floor(refXY.length * 0.05);
     const p0 = refXY[idx], p1 = refXY[idx + 4];
     const dx = p1.x - p0.x, dy = p1.y - p0.y;
-    const len = Math.sqrt(dx*dx + dy*dy) || 1;
-    const ang = Math.atan2(dy, dx);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    const len = Math.hypot(dx, dy) || 1;
     ctx.save();
-    ctx.translate(p0.x + dx/len*10, p0.y + dy/len*10);
-    ctx.rotate(ang);
-    ctx.beginPath();
-    ctx.moveTo(7, 0); ctx.lineTo(-5, 5); ctx.lineTo(-5, -5); ctx.closePath();
-    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.translate(p0.x + dx / len * 10, p0.y + dy / len * 10);
+    ctx.rotate(Math.atan2(dy, dx));
+    ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-5, 5); ctx.lineTo(-5, -5); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 
-  // Metric gradient bar at bottom
-  const LY = DRAW_H + 5;
-  const LX = 10, LW = W - 20;
-  const grad = ctx.createLinearGradient(LX, 0, LX + LW, 0);
-  for (let i = 0; i <= 10; i++) {
-    const t = i / 10;
-    const [r, g, b] = metricColor(minVal + t * valRange, t, metric);
-    grad.addColorStop(t, `rgb(${r},${g},${b})`);
-  }
-  ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.roundRect(LX, LY, LW, 7, 3); ctx.fill();
-
-  ctx.fillStyle = 'rgba(0,0,0,0.8)';
-  ctx.font = '600 11px Inter, system-ui';
-  ctx.textAlign = 'left';  ctx.fillText(minVal.toFixed(metric === 'brake' ? 1 : 0), LX, LY + 17);
-  ctx.textAlign = 'right'; ctx.fillText(maxVal.toFixed(metric === 'brake' ? 1 : 0), LX + LW, LY + 17);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillText(metric === 'brake' ? 'bar' : 'km/h', LX + LW/2, LY + 17);
-  ctx.restore(); // restore scale transform
-}
-
-function findGasStart(seg, afterDist) {
-  for (const p of seg) {
-    if (p.dist < afterDist) continue;
-    if (p.throttle > 8 || p.accelPos > 8) return p;
-  }
-  return null;
-}
-
-function buildZoneEvents(refSeg, compSeg, zone) {
-  const events = [];
-
-  const push = (pt, isRef, shape, color, glow, label, labelColor, r) => {
-    if (!pt?.lat) return;
-    events.push({ lat: pt.lat, lon: pt.lon, isRef, shape, color, glow, label, labelColor, r });
+  // Slowest point of each lap, labelled in that lap's colour
+  const labelled = [];
+  const markSlowest = (pts, color, tag) => {
+    if (!pts.length) return;
+    const p = pts.reduce((a, b) => (b.speed < a.speed ? b : a));
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const text = `${tag} ${Math.round(p.speed)} km/h`;
+    ctx.font = '700 12px "Titillium Web", system-ui';
+    const tw = ctx.measureText(text).width;
+    let lx = Math.max(4, Math.min(W - tw - 12, p.x + 10));
+    let ly = Math.max(14, Math.min(H - 6, p.y + 4));
+    // keep the two labels from overlapping
+    while (labelled.some(l => Math.abs(l - ly) < 16)) ly = Math.min(H - 6, ly + 16);
+    labelled.push(ly);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillRect(lx - 4, ly - 12, tw + 8, 16);
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    ctx.fillText(text, lx, ly);
   };
-
-  if (zone.type === 'brake') {
-    const rb = zone.ref, cb = zone.comp;
-
-    const rBrakeStart = closestPoint(refSeg, rb.startDist);
-    push(rBrakeStart, true, 'square', '#dc2626', '#dc2626', null, null, 7);
-    const rBrakeEnd = closestPoint(refSeg, rb.endDist);
-    push(rBrakeEnd, true, 'diamond', '#f59e0b', '#f59e0b', 'REL', '#b45309', 7);
-    const rGas = findGasStart(refSeg, rb.endDist);
-    push(rGas, true, 'circle', '#16a34a', '#22c55e', 'THROTTLE', '#15803d', 7);
-
-    if (cb) {
-      const cBrakeStart = closestPoint(compSeg, cb.startDist);
-      push(cBrakeStart, false, 'square',  '#dc2626', '#dc2626', null, null, 7);
-      const cBrakeEnd = closestPoint(compSeg, cb.endDist);
-      push(cBrakeEnd,   false, 'diamond', '#f59e0b', '#f59e0b', null, null, 7);
-      const cGas = findGasStart(compSeg, cb.endDist);
-      push(cGas,        false, 'circle',  '#16a34a', '#22c55e', null, null, 7);
-    }
-
-  } else {
-    const rc = zone.ref, cc = zone.comp;
-    const rb = zone.brakeZone, cb = zone.compBrakeZone;
-
-    if (rb) {
-      const rBrakeStart = closestPoint(refSeg, rb.startDist);
-      push(rBrakeStart, true,  'square',  '#dc2626', '#dc2626', null,  null,      7);
-      const rBrakeEnd   = closestPoint(refSeg, rb.endDist);
-      push(rBrakeEnd,   true,  'diamond', '#f59e0b', '#f59e0b', 'REL', '#b45309', 7);
-      if (cb) {
-        const cBrakeStart = closestPoint(compSeg, cb.startDist);
-        push(cBrakeStart, false, 'square',  '#dc2626', '#dc2626', null, null, 7);
-        const cBrakeEnd   = closestPoint(compSeg, cb.endDist);
-        push(cBrakeEnd,   false, 'diamond', '#f59e0b', '#f59e0b', null, null, 7);
-      }
-    }
-
-    const rGas = rc.throttlePickupDist != null ? closestPoint(refSeg, rc.throttlePickupDist) : null;
-    push(rGas, true, 'circle', '#16a34a', '#22c55e', 'THROTTLE', '#15803d', 7);
-    if (cc && cc.throttlePickupDist != null) {
-      const cGas = closestPoint(compSeg, cc.throttlePickupDist);
-      push(cGas, false, 'circle', '#16a34a', '#22c55e', null, null, 7);
-    }
-  }
-
-  return events;
+  markSlowest(refXY,   LAP_A_COLOR, 'A');
+  markSlowest(compOff, LAP_B_COLOR, 'B');
+  ctx.restore();
 }
 
-// ── PRESSURE CHART (right panel of each corner card) ──────
-function drawPressureChart(canvas, refSeg, compSeg, zone) {
+// ── BRAKE & THROTTLE (two stacked panels; Lap A blue solid, Lap B green dashed)
+function drawPressureChart(canvas, refSeg, compSeg) {
   const ctx = canvas.getContext('2d');
   ctx.save();
-  // Scale from original 480×300 logical space → actual canvas size for crisp output
   ctx.scale(canvas.width / 480, canvas.height / 300);
   const W = 480, H = 300;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  const mL = 36, mR = 14, mT = 16, mB = 38;
-  const pW = W - mL - mR, pH = H - mT - mB;
-
   const all = [...refSeg, ...compSeg];
   if (all.length < 2) { ctx.restore(); return; }
 
+  const mL = 40, mR = 12, mT = 8, mB = 34, gap = 22;
+  const pW = W - mL - mR;
+  const pH = (H - mT - mB - gap) / 2;
   const dMin = Math.min(...all.map(p => p.dist));
   const dMax = Math.max(...all.map(p => p.dist));
   const dRange = dMax - dMin || 1;
   const toX = d => mL + (d - dMin) / dRange * pW;
-  const toY = pct => mT + pH - Math.max(0, Math.min(1, pct / 100)) * pH;
 
-  // Grid
-  [0, 25, 50, 75, 100].forEach(pct => {
-    const y = toY(pct);
-    ctx.strokeStyle = pct === 0 ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.07)';
-    ctx.lineWidth = pct === 0 ? 1 : 0.5;
-    ctx.beginPath(); ctx.moveTo(mL, y); ctx.lineTo(mL + pW, y); ctx.stroke();
-    ctx.fillStyle = 'rgba(0,0,0,0.8)';
-    ctx.font = '600 11px Inter, system-ui';
-    ctx.textAlign = 'right';
-    ctx.fillText(pct + '%', mL - 5, y + 4);
+  // Brake as % of the larger lap's peak; throttle as logged (pedal if no plate)
+  const brakeMax = Math.max(...all.map(p => p.brake || 0)) || 1;
+  const tField = all.some(p => (p.throttle || 0) > 0) ? 'throttle'
+               : all.some(p => (p.accelPos || 0) > 0) ? 'accelPos' : null;
+  const panels = [
+    { title: 'BRAKE',    top: mT,            get: p => (p.brake || 0) / brakeMax * 100, show: brakeMax > 1 },
+    { title: 'THROTTLE', top: mT + pH + gap, get: p => tField ? (p[tField] || 0) : NaN, show: !!tField },
+  ];
+
+  ctx.font = '600 11px "Titillium Web", system-ui';
+  panels.forEach(panel => {
+    const toY = pct => panel.top + pH - Math.max(0, Math.min(1, pct / 100)) * pH;
+    // grid + labels
+    [0, 50, 100].forEach(pct => {
+      const y = toY(pct);
+      ctx.strokeStyle = pct === 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)';
+      ctx.lineWidth = pct === 0 ? 1 : 0.6;
+      ctx.beginPath(); ctx.moveTo(mL, y); ctx.lineTo(mL + pW, y); ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${pct}%`, mL - 5, y + 4);
+    });
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.textAlign = 'left';
+    ctx.font = '700 10px "Archivo", system-ui';
+    ctx.fillText(panel.title, mL + 4, panel.top + 11);
+    ctx.font = '600 11px "Titillium Web", system-ui';
+    if (!panel.show) {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillText('not logged', mL + 70, panel.top + 11);
+      return;
+    }
+    const line = (seg, color, dash) => {
+      const pts = seg.filter(p => isFinite(panel.get(p)));
+      if (pts.length < 2) return;
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      pts.forEach((p, i) => {
+        const x = toX(p.dist), y = toY(panel.get(p));
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    };
+    line(refSeg,  LAP_A_COLOR, []);
+    line(compSeg, LAP_B_COLOR, LAP_B_DASH);
   });
 
-  // X grid lines every ~100m
-  const step = dRange > 600 ? 200 : dRange > 300 ? 100 : 50;
-  for (let d = Math.ceil(dMin / step) * step; d <= dMax; d += step) {
-    const x = toX(d);
-    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(x, mT); ctx.lineTo(x, mT + pH); ctx.stroke();
-  }
-
-  const brakeMax = Math.max(...all.map(p => p.brake || 0)) || 80;
-  const tField = all.find(p => (p.throttle || 0) > 0) ? 'throttle'
-               : all.find(p => (p.accelPos || 0) > 0) ? 'accelPos' : null;
-
-  const LW = 2;
-
-  const drawLine = (seg, getY, color, dash = []) => {
-    const pts = seg.filter(p => !isNaN(getY(p)));
-    if (pts.length < 2) return;
-    ctx.strokeStyle = color; ctx.lineWidth = LW; ctx.lineJoin = 'round';
-    ctx.setLineDash(dash);
-    ctx.beginPath();
-    pts.forEach((p, i) => {
-      const x = toX(p.dist), y = toY(getY(p));
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    ctx.setLineDash([]);
-  };
-
-  const brakePct  = p => (p.brake || 0) / brakeMax * 100;
-  const throttPct = tField ? (p => p[tField] || 0) : null;
-
-  // Lap B dashed (behind), Lap A solid (on top)
-  drawLine(compSeg, brakePct,  '#dc2626', [6, 4]);
-  if (throttPct) drawLine(compSeg, throttPct, '#16a34a', [6, 4]);
-  drawLine(refSeg,  brakePct,  '#dc2626');
-  if (throttPct) drawLine(refSeg,  throttPct, '#16a34a');
-
-  // Y axis label
-  ctx.save();
-  ctx.translate(10, mT + pH / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  ctx.font = '600 11px Inter, system-ui';
+  // Shared distance axis
+  const nTicks = Math.min(6, Math.floor(pW / 60));
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.textAlign = 'center';
-  ctx.fillText('%', 0, 0);
-  ctx.restore();
-
-  // Axes
-  ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(mL, mT); ctx.lineTo(mL, mT + pH); ctx.lineTo(mL + pW, mT + pH);
-  ctx.stroke();
-
-  // X tick labels
-  ctx.font = '600 11px Inter, system-ui';
-  const nTicks = Math.min(6, Math.floor(pW / 55));
   for (let i = 0; i <= nTicks; i++) {
     const d = dMin + (i / nTicks) * dRange;
-    const x = toX(d);
-    ctx.fillStyle = 'rgba(0,0,0,0.8)';
-    ctx.textAlign = 'center';
-    ctx.fillText('+' + Math.round(d - dMin) + 'm', x, mT + pH + 13);
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(x, mT + pH); ctx.lineTo(x, mT + pH + 4); ctx.stroke();
+    ctx.fillText(`+${Math.round(d - dMin)}m`, toX(d), H - mB + 16);
   }
-
-  // X axis label
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.font = '11px Inter, system-ui'; ctx.textAlign = 'center';
-  ctx.fillText('Distance from corner entry (m)', mL + pW / 2, mT + pH + 28);
-  ctx.restore(); // restore scale transform
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillText('Distance from section start', mL + pW / 2, H - 4);
+  ctx.restore();
 }
 
 // ── CORNER COACHING TIP ────────────────────────────────────
@@ -495,8 +283,10 @@ function buildCornerCoachingTip(zone) {
 
   if (!tips.length) tips.push('Both laps are very similar here — focus on consistency.');
 
+  // Name each lap in its own colour
+  const named = t => t.replace(/\bLap ([AB])\b/g, (_, w) => `<span class="lap-name-${w.toLowerCase()}">Lap ${w}</span>`);
   return `<div class="zone-coaching-header">Coaching notes</div>
-    <div class="zone-coaching-tip">${tips.map(t => `<p>• ${t}</p>`).join('')}</div>`;
+    <div class="zone-coaching-tip">${tips.map(t => `<p>• ${named(t)}</p>`).join('')}</div>`;
 }
 
 // ── MASTER ZONE RENDERER ───────────────────────────────────
@@ -565,7 +355,11 @@ function renderAndDrawZones(refLap, compLap) {
     z.timeDelta = z.mA && z.mB ? z.mB.time - z.mA.time : null;
   });
 
-  const fmtDelta = v => v == null ? '' : `${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v).toFixed(3)} s`;
+  // timeDelta = Lap B − Lap A section time; say who is ahead rather than a signed number
+  const ahead = v => v == null ? null : v > 0.005 ? 'a' : v < -0.005 ? 'b' : null;
+  const fmtAhead = v => v == null ? '' : ahead(v)
+    ? `Lap ${ahead(v).toUpperCase()} faster by ${Math.abs(v).toFixed(3)} s`
+    : 'Even';
   const maxAbs = Math.max(0.05, ...corners.map(z => Math.abs(z.timeDelta || 0)));
 
   const html = `
@@ -575,12 +369,12 @@ function renderAndDrawZones(refLap, compLap) {
           <div class="zone-analysis-title">Corner analysis</div>
           <div class="corner-view-sub">${knownTrack
             ? `${corners.length} turns · official ${escapeHtml(knownTrack.name)} numbering`
-            : `${corners.length} corners detected`} · time is Lap B vs Lap A</div>
+            : `${corners.length} corners detected`} · bars show who is faster in each turn</div>
         </div>
         <div class="corner-picker">
           <button class="btn btn-sm" id="cornerPrev" aria-label="Previous corner">‹</button>
           <select id="cornerSelect" class="corner-select" aria-label="Corner">
-            ${corners.map((z, i) => `<option value="${i}">${escapeHtml(z.label)} · ${z.direction}${z.timeDelta != null ? ` · ${fmtDelta(z.timeDelta)}` : ''}</option>`).join('')}
+            ${corners.map((z, i) => `<option value="${i}">${escapeHtml(z.label)} · ${z.direction}${z.timeDelta != null ? ` · ${fmtAhead(z.timeDelta)}` : ''}</option>`).join('')}
           </select>
           <button class="btn btn-sm" id="cornerNext" aria-label="Next corner">›</button>
         </div>
@@ -590,15 +384,15 @@ function renderAndDrawZones(refLap, compLap) {
         ${corners.map((z, i) => {
           const d = z.timeDelta || 0;
           const h = Math.round(Math.abs(d) / maxAbs * 100);
-          const cls = d > 0.005 ? 'is-loss' : d < -0.005 ? 'is-gain' : '';
+          const cls = ahead(z.timeDelta) ? `is-${ahead(z.timeDelta)}-ahead` : '';
           return `<button class="corner-strip-item ${cls}" data-i="${i}" role="tab"
-                    title="${escapeHtml(z.label)}: Lap B ${fmtDelta(z.timeDelta) || 'n/a'}">
+                    title="${escapeHtml(z.label)}: ${fmtAhead(z.timeDelta) || 'n/a'}">
                     <span class="corner-strip-bar"><span style="height:${h}%"></span></span>
                     <span class="corner-strip-label">${escapeHtml(String(z.ref.id ?? i + 1))}</span>
                   </button>`;
         }).join('')}
       </div>
-      <div class="corner-strip-legend"><span class="is-loss"></span>Lap B slower <span class="is-gain"></span>Lap B faster</div>
+      <div class="corner-strip-legend"><span class="is-a-ahead"></span>Lap A faster <span class="is-b-ahead"></span>Lap B faster <em>· taller bar = bigger gap</em></div>
 
       <div id="cornerDetail"></div>
     </div>`;
@@ -640,7 +434,8 @@ function renderAndDrawZones(refLap, compLap) {
     const d = b - a;
     const shown = fmt(Math.abs(d)).replace(/^-/, '');
     const tiny = Math.abs(d) < 1e-6 || /^0(\.0+)?(?![.\d])/.test(shown);   // rounds to zero
-    const cls = !dir || tiny ? '' : ((dir === 'higher') === (d > 0) ? 'is-good' : 'is-bad');
+    // colour by which lap is better on this metric
+    const cls = !dir || tiny ? '' : ((dir === 'higher') === (d > 0) ? 'is-b-better' : 'is-a-better');
     return `<td class="mt-delta ${cls}">${tiny ? '0' : (d > 0 ? '+' : '−') + shown}</td>`;
   };
 
@@ -650,7 +445,7 @@ function renderAndDrawZones(refLap, compLap) {
       return v == null || !isFinite(v) ? '—' : fmt(v);
     };
     return `<table class="metric-table">
-      <thead><tr><th></th><th>Lap A</th><th>Lap B</th><th>B vs A</th></tr></thead>
+      <thead><tr><th></th><th><span class="lap-swatch a"></span> Lap A</th><th><span class="lap-swatch b"></span> Lap B</th><th title="Lap B minus Lap A, coloured by the lap that is better on that metric">Difference</th></tr></thead>
       ${ROWS.map(([group, rows]) => {
         const shown = rows.filter(([, get]) => (z.mA && get(z.mA) != null) || (z.mB && get(z.mB) != null));
         if (!shown.length) return '';
@@ -685,8 +480,8 @@ function renderAndDrawZones(refLap, compLap) {
     const el = document.getElementById('cornerDetail');
     if (!el) return;
     const verdict = z.timeDelta == null ? ''
-      : `<div class="corner-verdict ${z.timeDelta > 0.005 ? 'is-loss' : z.timeDelta < -0.005 ? 'is-gain' : ''}">
-           <span>Lap B in this section</span><strong>${fmtDelta(z.timeDelta)}</strong>
+      : `<div class="corner-verdict ${ahead(z.timeDelta) ? `is-${ahead(z.timeDelta)}-ahead` : ''}">
+           <span>In this section</span><strong>${fmtAhead(z.timeDelta)}</strong>
          </div>`;
     el.innerHTML = `
       <div class="corner-detail">
@@ -700,22 +495,22 @@ function renderAndDrawZones(refLap, compLap) {
 
         <div class="corner-visuals">
           <figure class="corner-fig">
-            <figcaption>Line &amp; speed
-              <span class="leg"><i style="background:${LAP_A_COLOR}"></i>A</span>
-              <span class="leg"><i style="background:${LAP_B_COLOR}"></i>B (offset)</span></figcaption>
+            <figcaption>Racing line
+              <span class="leg"><span class="lap-swatch a"></span>A</span>
+              <span class="leg"><span class="lap-swatch b"></span>B (offset)</span>
+              <span class="leg muted">dot = slowest point</span></figcaption>
             <canvas id="zc_map" width="${MAP_W}" height="${MAP_H}"></canvas>
           </figure>
           <figure class="corner-fig">
             <figcaption>Brake &amp; throttle
-              <span class="leg"><i style="background:#dc2626"></i>Brake</span>
-              <span class="leg"><i style="background:#16a34a"></i>Throttle</span>
-              <span class="leg muted">solid A · dashed B</span></figcaption>
+              <span class="leg"><span class="lap-swatch a"></span>A</span>
+              <span class="leg"><span class="lap-swatch b"></span>B</span></figcaption>
             <canvas id="zc_chart" width="${CHT_W}" height="${CHT_H}"></canvas>
           </figure>
           <figure class="corner-fig is-square">
             <figcaption>Friction circle
-              <span class="leg"><i style="background:${LAP_A_COLOR}"></i>A</span>
-              <span class="leg"><i style="background:${LAP_B_COLOR}"></i>B</span></figcaption>
+              <span class="leg"><span class="lap-swatch a"></span>A</span>
+              <span class="leg"><span class="lap-swatch b"></span>B</span></figcaption>
             <canvas id="zc_gg" width="${GG}" height="${GG}"></canvas>
           </figure>
         </div>
@@ -729,8 +524,8 @@ function renderAndDrawZones(refLap, compLap) {
     const refSeg  = getDataInRange(refLap.data,  z.distStart, z.distEnd);
     const winB    = mapWindow({ start: z.distStart, end: z.distEnd }, refLap, compLap);
     const compSeg = getDataInRange(compLap.data, winB.start, winB.end);
-    drawZoneCanvas(document.getElementById('zc_map'), refSeg, compSeg, z.metric, []);
-    drawPressureChart(document.getElementById('zc_chart'), refSeg, compSeg, z);
+    drawZoneCanvas(document.getElementById('zc_map'), refSeg, compSeg);
+    drawPressureChart(document.getElementById('zc_chart'), refSeg, compSeg);
     drawFrictionCircle(document.getElementById('zc_gg'),
       ggPoints(refLap, { start: z.distStart, end: z.distEnd }), ggPoints(compLap, winB));
   };
@@ -791,20 +586,23 @@ function drawFrictionCircle(canvas, ptsA, ptsB) {
   ctx.fillText('BRAKE', c, S - 18);
   ctx.save(); ctx.translate(26, c); ctx.rotate(-Math.PI / 2); ctx.fillText('LATERAL', 0, 0); ctx.restore();
 
-  // Traces: B first, A on top
-  const trace = (pts, color) => {
+  // Traces: A solid, then B dashed on top so both stay visible
+  const k = S / 300;   // canvas is drawn ~3× its on-screen size
+  const trace = (pts, color, dash) => {
     if (pts.length < 2) return;
-    ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.globalAlpha = 0.9;
+    ctx.setLineDash(dash.map(v => v * k));
     ctx.beginPath();
     pts.forEach(([x, y], i) => {
       const px = c + toPx(x), py = c - toPx(y);
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     });
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   };
-  trace(ptsB, LAP_B_COLOR);
-  trace(ptsA, LAP_A_COLOR);
+  trace(ptsA, LAP_A_COLOR, []);
+  trace(ptsB, LAP_B_COLOR, LAP_B_DASH);
   ctx.restore();
 }
 

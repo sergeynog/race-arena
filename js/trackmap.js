@@ -97,35 +97,49 @@ function renderTrackMap() {
     }
   };
 
-  // Draw Lap B first (outline, behind heatmap)
-  if (lapB) {
-    ctx.strokeStyle = LAP_B_COLOR + 'cc';
-    ctx.lineWidth = 2;
+  const tracePath = (lap, step = 1) => {
     ctx.beginPath();
     let first = true;
-    lapB.data.forEach((p, i) => {
-      if (p.lat === 0 && p.lon === 0) return;
-      if (i % 2 !== 0) return; // skip every other point for performance
+    lap.data.forEach((p, i) => {
+      if ((p.lat === 0 && p.lon === 0) || i % step) return;
       const [x, y] = toXY(p.lat, p.lon);
-      if (first) { ctx.moveTo(x, y); first = false; }
-      else ctx.lineTo(x, y);
+      if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
     });
+  };
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  if (state.mapColorMode === 'speed') {
+    // Lap A coloured by its speed
+    for (let i = 1; i < refLap.data.length; i++) {
+      const p0 = refLap.data[i-1];
+      const p1 = refLap.data[i];
+      if (p0.lat === 0 || p1.lat === 0) continue;
+      const [x0, y0] = toXY(p0.lat, p0.lon);
+      const [x1, y1] = toXY(p1.lat, p1.lon);
+      ctx.strokeStyle = speedToColor(p0.speed);
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+  } else if (laps.includes(lapA)) {
+    // Lap A — blue, solid
+    ctx.strokeStyle = LAP_A_COLOR;
+    ctx.lineWidth = 4;
+    tracePath(lapA);
     ctx.stroke();
   }
 
-  // Draw Lap A colored by speed (on top)
-  for (let i = 1; i < refLap.data.length; i++) {
-    const p0 = refLap.data[i-1];
-    const p1 = refLap.data[i];
-    if (p0.lat === 0 || p1.lat === 0) continue;
-    const [x0, y0] = toXY(p0.lat, p0.lon);
-    const [x1, y1] = toXY(p1.lat, p1.lon);
-    ctx.strokeStyle = speedToColor(p0.speed);
+  // Lap B — green, dashed, on top so both lines stay visible where they overlap
+  if (laps.includes(lapB)) {
+    ctx.strokeStyle = LAP_B_COLOR;
     ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
+    ctx.setLineDash(LAP_B_DASH);
+    tracePath(lapB, 2);
     ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // Start marker
@@ -145,17 +159,21 @@ function renderTrackMap() {
   document.getElementById('speedMin').textContent = `${Math.round(minSpeed)} km/h`;
 
   const lapLegend = document.getElementById('trackLapLegend');
-  let legendHTML = `<div class="legend-item">
-    <div class="legend-swatch" style="background:${LAP_A_COLOR};"></div>
-    <span style="font-size:13px;color:${LAP_A_COLOR};">Lap A · ${refLap.timeStr}</span>
-  </div>`;
-  if (lapB) {
+  const speedMode = state.mapColorMode === 'speed';
+  let legendHTML = laps.includes(lapA) ? `<div class="legend-item">
+    <span class="lap-swatch a"${speedMode ? ' style="border-top-color:#9aa0a6"' : ''}></span>
+    <span class="lap-name-a">Lap A · ${lapA.timeStr}${speedMode ? ' (coloured by speed)' : ''}</span>
+  </div>` : '';
+  if (laps.includes(lapB)) {
     legendHTML += `<div class="legend-item">
-      <div class="legend-swatch" style="background:${LAP_B_COLOR};"></div>
-      <span style="font-size:13px;color:${LAP_B_COLOR};">Lap B · ${lapB.timeStr}</span>
+      <span class="lap-swatch b"></span>
+      <span class="lap-name-b">Lap B · ${lapB.timeStr}</span>
     </div>`;
   }
   lapLegend.innerHTML = legendHTML;
+  document.getElementById('speedLegend').hidden = !speedMode;
+  document.querySelectorAll('.map-mode-btn').forEach(btn =>
+    btn.classList.toggle('is-active', btn.dataset.mode === (speedMode ? 'speed' : 'laps')));
 
   // Save screen-space pts for click crosshair
   state.trackRefScreenPts = refLap.data
@@ -223,6 +241,14 @@ function updateTrackCrosshair() {
 const MAP_WIDTH_KEY = 'raceArena.mapWidth';
 
 (function initMapPanel() {
+  // Line colouring: laps (A blue / B green) or Lap A by speed
+  try { state.mapColorMode = localStorage.getItem('raceArena.mapColorMode') || 'laps'; } catch { state.mapColorMode = 'laps'; }
+  document.querySelectorAll('.map-mode-btn').forEach(btn => btn.addEventListener('click', () => {
+    state.mapColorMode = btn.dataset.mode;
+    try { localStorage.setItem('raceArena.mapColorMode', state.mapColorMode); } catch {}
+    if (document.getElementById('trackCanvas')) renderTrackMap();
+  }));
+
   const body   = document.querySelector('.analysis-body');
   const handle = document.getElementById('mapResizer');
   const panel  = document.getElementById('analysisMap');

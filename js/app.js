@@ -30,20 +30,9 @@ function switchTab(tabName) {
 
   if (tabName === 'coaching') {
     syncCoachingBar();
-    const mainEl = document.getElementById('coachingMain');
-    const lapA = getLapA();
-    const lapB = getLapB();
-    if (mainEl && mainEl.querySelector('.coaching-empty')) {
-      if (lapA && lapB) {
-        mainEl.innerHTML = `<div class="coaching-empty">
-          <div class="coaching-empty-icon">🏎</div>
-          <div class="coaching-empty-title">Laps selected — ready to analyze</div>
-          <div class="coaching-empty-desc">
-            Open <strong>Zone maps</strong> for a quick corner-by-corner view, or <strong>Analyze with Marcus</strong> for a full AI coaching report.
-          </div>
-        </div>`;
-      }
-    }
+    // Open on the corner-by-corner view for the selected pair, unless this
+    // pair is already showing (zone maps or a Marcus report)
+    if (getLapA() && getLapB() && state.coachViewPair !== coachPairKey()) showZoneMaps();
   }
 
   if (tabName === 'tips' && !state._tipsLoaded) {
@@ -58,6 +47,42 @@ function switchTab(tabName) {
       state.lastRenderedPair = { a: state.lapA, b: state.lapB };
     });
   }
+}
+
+// ── ZONE MAPS (corner-by-corner view) ─────────────────────────
+function coachPairKey() {
+  return `${state.lapA}|${state.lapB}`;
+}
+
+async function showZoneMaps() {
+  const lapA = getLapA();
+  const lapB = getLapB();
+  const mainEl = document.getElementById('coachingMain');
+  if (!lapA || !lapB || !mainEl) return;
+  const pair = coachPairKey();
+  state.coachViewPair = pair;
+
+  if ((lapA._cloud && !lapA.data) || (lapB._cloud && !lapB.data)) {
+    mainEl.innerHTML = `<div class="coaching-loading"><div class="spinner"></div> Loading lap data…</div>`;
+  }
+  const [okA, okB] = await Promise.all([ensureLapData(lapA), ensureLapData(lapB)]);
+  if (state.coachViewPair !== pair) return;   // laps changed while loading
+  if (!okA || !okB) {
+    mainEl.innerHTML = `<div class="coaching-response is-error">
+      <h2>Something went wrong</h2>
+      <p>Could not load telemetry. Please try again.</p>
+    </div>`;
+    state.coachViewPair = null;
+    return;
+  }
+
+  const zones = renderAndDrawZones(lapA, lapB);
+  if (!zones) {
+    mainEl.innerHTML = `<div class="coaching-empty"><div class="coaching-empty-icon">🔍</div><div class="coaching-empty-title">No corners detected</div></div>`;
+    return;
+  }
+  mainEl.innerHTML = zones.html;
+  requestAnimationFrame(() => zones.draw());
 }
 
 // ── LOAD PROMPT FILES ─────────────────────────────────────────
@@ -372,33 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // (API key modal removed — Claude is accessed via server-side Cloud Function)
 
   // ── PREVIEW ZONES ──────────────────────────────────────────
-  document.getElementById('btnPreviewZones')?.addEventListener('click', async () => {
-    const lapA = getLapA();
-    const lapB = getLapB();
-    if (!lapA || !lapB) return;
-    const mainEl = document.getElementById('coachingMain');
-
-    const needsDownload = (lapA._cloud && !lapA.data) || (lapB._cloud && !lapB.data);
-    if (needsDownload) {
-      mainEl.innerHTML = `<div class="coaching-loading"><div class="spinner"></div> Loading lap data from cloud…</div>`;
-    }
-    const [okA, okB] = await Promise.all([ensureLapData(lapA), ensureLapData(lapB)]);
-    if (!okA || !okB) {
-      mainEl.innerHTML = `<div class="coaching-response is-error">
-        <h2>Something went wrong</h2>
-        <p>Could not load telemetry. Please try again.</p>
-      </div>`;
-      return;
-    }
-
-    const zones = renderAndDrawZones(lapA, lapB);
-    if (!zones) {
-      mainEl.innerHTML = `<div class="coaching-empty"><div class="coaching-empty-icon">🔍</div><div>No significant zones detected.</div></div>`;
-      return;
-    }
-    mainEl.innerHTML = zones.html;
-    requestAnimationFrame(() => zones.draw());
-  });
+  document.getElementById('btnPreviewZones')?.addEventListener('click', showZoneMaps);
 
   // ── ANALYZE LAPS ───────────────────────────────────────────
   document.getElementById('btnAnalyze')?.addEventListener('click', async () => {
@@ -410,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showMarcusLoginRequiredModal();
       return;
     }
+    state.coachViewPair = coachPairKey();   // keep the report when switching tabs
 
     const mainEl     = document.getElementById('coachingMain');
     const analyzeBtn = document.getElementById('btnAnalyze');

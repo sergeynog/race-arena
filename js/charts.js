@@ -73,7 +73,7 @@ function buildDatasets(field, lapObjects) {
       borderColor: color,
       backgroundColor: 'transparent',
       borderWidth: 2,
-      borderDash: isA ? [] : [6, 3],
+      borderDash: isA ? [] : LAP_B_DASH,
     };
   });
 }
@@ -86,7 +86,7 @@ function buildSeriesDatasets(lapObjects, seriesFor) {
     borderColor: isA ? LAP_A_COLOR : LAP_B_COLOR,
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderDash: isA ? [] : [6, 3],
+    borderDash: isA ? [] : LAP_B_DASH,
   }));
 }
 
@@ -181,7 +181,7 @@ function renderCharts() {
 
   grid.innerHTML = `
     ${pair ? `<div class="chart-card wide">
-      <div class="chart-title">Time gap <span class="chart-unit">Lap B vs Lap A · above zero = Lap B behind</span></div>
+      <div class="chart-title">Time gap <span class="chart-unit">above zero (blue) = <b class="lap-name-a">Lap A ahead</b> · below zero (green) = <b class="lap-name-b">Lap B ahead</b></span></div>
       <div class="chart-container"><canvas id="chartDelta"></canvas></div>
     </div>` : ''}
     <div class="chart-card wide">
@@ -251,12 +251,12 @@ function renderCharts() {
   const deltaCanvas = document.getElementById('chartDelta');
   if (deltaCanvas) {
     const cfg = makeChartConfig('delta', 's', [{
-      label: 'Lap B vs A',
+      label: 'Gap (Lap B − Lap A)',
       data: deltaTrace(lapA, lapB),
       borderColor: '#111111',
-      backgroundColor: 'rgba(218,41,28,0.10)',
       borderWidth: 2,
-      fill: 'origin',
+      // Shade by who is ahead: Lap A's colour above zero, Lap B's below
+      fill: { target: 'origin', above: 'rgba(29,111,224,0.16)', below: 'rgba(22,163,74,0.18)' },
     }], 3);
     cfg.options.scales.y.ticks.callback = v => `${v > 0 ? '+' : ''}${v.toFixed(1)}s`;
     cfg.options.scales.y.grid.color = ctx => ctx.tick.value === 0 ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.06)';
