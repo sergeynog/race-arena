@@ -473,14 +473,18 @@ function buildCornerCoachingTip(zone) {
     }
   }
 
+  // Only credit a cause when the data shows it for this corner
+  const aBrakesLater   = !!(rb && cb && rb.startDist - cb.startDist > 3);
+  const tDiff          = (rc.throttleDelay || 0) - (cc.throttleDelay || 0);
+  const aThrottleFirst = tDiff < -5;
+
   const apexDiff = rc.minSpeed - cc.minSpeed;
   if (Math.abs(apexDiff) > 1.5) {
     tips.push(apexDiff > 0
-      ? `Lap A carries <strong>${apexDiff.toFixed(1)} km/h more</strong> through the apex — the later brake point is generating more minimum speed.`
+      ? `Lap A carries <strong>${apexDiff.toFixed(1)} km/h more</strong> through the apex${aBrakesLater ? ' — the later brake point is generating more minimum speed' : ''}.`
       : `Lap B is <strong>${Math.abs(apexDiff).toFixed(1)} km/h faster</strong> at apex — find more entry speed or a tighter line.`);
   }
 
-  const tDiff = (rc.throttleDelay || 0) - (cc.throttleDelay || 0);
   if (Math.abs(tDiff) > 5) {
     tips.push(tDiff < 0
       ? `Lap A gets on throttle <strong>${Math.abs(tDiff).toFixed(0)}m earlier</strong> after apex — commit to gas sooner for a faster exit.`
@@ -490,7 +494,7 @@ function buildCornerCoachingTip(zone) {
   const exitDiff = rc.exitSpeed - cc.exitSpeed;
   if (Math.abs(exitDiff) > 2) {
     tips.push(exitDiff > 0
-      ? `Lap A exits <strong>${exitDiff.toFixed(1)} km/h faster</strong> — the earlier throttle is paying off on the straight.`
+      ? `Lap A exits <strong>${exitDiff.toFixed(1)} km/h faster</strong>${aThrottleFirst ? ' — the earlier throttle is paying off on the straight' : ''}.`
       : `Lap B exits <strong>${Math.abs(exitDiff).toFixed(1)} km/h faster</strong> — refine the exit line to match.`);
   }
 
