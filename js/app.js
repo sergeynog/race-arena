@@ -135,8 +135,22 @@ async function loadFiles(files, uploadCar, uploadNotes) {
     const sessionHash = await hashCSV(text);
     if (state.sessions.find(s => s.sessionHash === sessionHash)) continue;
 
-    const parsed = parseAimCSV(text);
-    if (!parsed) { console.warn('[Race Arena] Could not parse file'); continue; }
+    // Sanity-check the file before importing; log anything we'd need to fix
+    const { parsed, issues } = checkImport(text);
+    const errors   = issues.filter(i => i.level === 'error');
+    const warnings = issues.filter(i => i.level === 'warning');
+    if (issues.length) {
+      console.warn('[Race Arena] Import issues in', file.name, issues);
+      logImportIssues({ file, parsed, issues }).catch(e =>
+        console.warn('[Race Arena] Could not log import issues:', e));
+    }
+    if (errors.length) {
+      showToast(`Couldn't import ${file.name}: ${errors.map(e => e.message).join(' ')}`, 'error', 12000);
+      continue;
+    }
+    if (warnings.length) {
+      showToast(`Imported ${file.name} with ${warnings.length === 1 ? 'a warning' : `${warnings.length} warnings`}: ${warnings[0].message}`, 'warning', 9000);
+    }
 
     parsed.sessionHash = sessionHash;
     state.sessions.push(parsed);

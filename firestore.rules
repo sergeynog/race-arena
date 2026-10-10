@@ -41,6 +41,16 @@ service cloud.firestore {
         resource.data.uid == request.auth.uid;
     }
 
+    // ── IMPORT ISSUE LOG ────────────────────────────────────────
+    // Files that failed or warned on upload, for fixing the parser later.
+    // Write-only from the app: a signed-in user can add entries tagged with
+    // their own uid; reading is done from the Firebase console / admin tools.
+    match /importIssues/{entryId} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if false;
+    }
+
     // ── CACHED AI ANALYSES ──────────────────────────────────────
     // Any authenticated user can read; only the creator can write.
     match /analyses/{pairId} {

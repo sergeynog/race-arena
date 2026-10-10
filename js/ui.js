@@ -399,14 +399,15 @@ async function deleteLaps(laps) {
 }
 
 // ── TOAST ─────────────────────────────────────────────────────
-function showToast(message, kind = 'info') {
+function showToast(message, kind = 'info', ms = 3200) {
   const el = document.createElement('div');
   el.className = `toast toast-${kind}`;
-  el.setAttribute('role', 'status');
+  el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
   el.textContent = message;
+  el.addEventListener('click', () => el.remove());
   document.body.appendChild(el);
-  setTimeout(() => el.classList.add('is-leaving'), 3200);
-  setTimeout(() => el.remove(), 3600);
+  setTimeout(() => el.classList.add('is-leaving'), ms);
+  setTimeout(() => el.remove(), ms + 400);
 }
 
 // ── DRIVER PROFILE POPUP ──────────────────────────────────────

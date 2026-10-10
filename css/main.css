@@ -555,6 +555,8 @@ header .btn-ghost:hover { background: transparent; border-color: transparent; co
   transition: opacity 0.3s, transform 0.3s;
 }
 .toast-error { background: var(--accent); }
+.toast-warning { background: #7c2d12; }
+.toast { max-width: min(640px, calc(100vw - 32px)); cursor: pointer; line-height: 1.45; }
 .toast.is-leaving { opacity: 0; transform: translate(-50%, 6px); }
 @keyframes toastIn {
   from { opacity: 0; transform: translate(-50%, 8px); }

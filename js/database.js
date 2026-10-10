@@ -99,6 +99,31 @@ async function saveSessionAndLaps(hash, laps, meta, csvPath) {
 // ── DELETE LAP ───────────────────────────────────────────────
 // Removes a lap from global community index and the user's subcollection.
 
+// ── IMPORT ISSUE LOG ─────────────────────────────────────────
+// Records files we couldn't import (or imported with warnings) so the parser
+// can be fixed later. Write-only for clients (see firestore.rules).
+async function logImportIssues({ file, parsed, issues }) {
+  if (!FIREBASE_CONFIGURED || !state.currentUser || !issues.length) return;
+  const meta = parsed?.meta || {};
+  const headers = meta.channelHeaders || [];
+  await db.collection('importIssues').add(firestoreSafe({
+    uid:        state.currentUser.uid,
+    username:   state.currentUserProfile?.username || '',
+    fileName:   file.name,
+    fileSize:   file.size,
+    vehicle:    meta.vehicle || '',
+    session:    meta.session || '',
+    sessionDate: meta.date || '',
+    columns:    headers.map((h, i) => `${h} [${(meta.units?.[i] || '').trim()}]`),
+    matched:    meta.channels || [],
+    errors:     issues.filter(i => i.level === 'error'),
+    warnings:   issues.filter(i => i.level === 'warning'),
+    appVersion: APP_VERSION,
+    userAgent:  navigator.userAgent,
+    createdAt:  firebase.firestore.FieldValue.serverTimestamp(),
+  }));
+}
+
 async function deleteLapFromCloud(lapId, uid) {
   if (!FIREBASE_CONFIGURED) return;
   const batch = db.batch();

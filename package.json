@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "setup": "node scripts/generate-config.js",
-    "test": "node --test tests/unit/merge-cloud-lap-shape.mjs",
+    "test": "node --test \"tests/unit/*.mjs\"",
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:e2e"
   },

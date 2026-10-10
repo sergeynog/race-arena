@@ -30,9 +30,9 @@ const CHANNEL_DEFS = {
   lat:       { names: [/^GPS Latitude$/i] },
   lon:       { names: [/^GPS Longitude$/i] },
   dist:      { names: [/^Distance on GPS Speed$/i, /^Distance$/i], units: 'length' },
-  accelPos:  { names: [/^ACCEL POS$/i, /^PPS$/i, /pedal/i, /^Accel(erator)?[ _]?Pos/i] },
-  throttle:  { names: [/^THROTTLE POS$/i, /^TPS$/i, /^Throttle([ _]?Pos(ition)?)?$/i, /throttle/i] },
-  brake:     { names: [/^BRAKE PRESS(URE)?([ _]?F(RONT)?)?$/i, /brake.*press/i, /^Brk[ _]?Pres/i], units: 'pressure' },
+  accelPos:  { names: [/^ACCEL POS$/i, /^PPS$/i, /pedal/i, /^Acc(el(erator)?)?[ _]?(Pos|Ped)/i] },
+  throttle:  { names: [/^THROTTLE POS$/i, /^TPS$/i, /^Throttle([ _]?Pos(ition)?)?$/i, /^Thro(ttle)?[ _]?Plate[ _]?Corr/i, /throttle/i] },
+  brake:     { names: [/^BRAKE PRESS(URE)?([ _]?F(RONT)?)?$/i, /^(Front[ _]?)?Brake[ _]?P(ress(ure)?)?$/i, /brake.*press/i, /^Brk[ _]?Pres/i], units: 'pressure' },
   steer:     { names: [/^STEER ANGLE$/i, /steer/i] },
   rpm:       { names: [/^RPM dup 2$/i, /^RPM dup 1$/i, /^RPM$/i, /^Engine[ _]?Speed$/i] },
   imuLonAcc: { names: [/^InlineAcc$/i], units: 'acc' },
@@ -59,7 +59,13 @@ const UNIT_CONVERSIONS = {
   temp:     { f: [5 / 9, -32 * 5 / 9], '°f': [5 / 9, -32 * 5 / 9] },
 };
 
-function resolveChannels(headers, units) {
+// Units the app already uses, per conversion group (no conversion needed)
+const NATIVE_UNITS = {
+  speed: ['km/h', 'kph', 'kmh'], length: ['m'], pressure: ['bar'], acc: ['g'], temp: ['c', '°c'],
+};
+
+// issues (optional) collects { level, code, message } for the import check
+function resolveChannels(headers, units, issues = []) {
   const used = new Set();
   const map = {};
   for (const [field, def] of Object.entries(CHANNEL_DEFS)) {
@@ -71,13 +77,18 @@ function resolveChannels(headers, units) {
     if (idx < 0) continue;
     used.add(idx);
     const unit = (units[idx] || '').trim().toLowerCase();
-    const [scale, offset] = (def.units && UNIT_CONVERSIONS[def.units][unit]) || [1, 0];
-    map[field] = { idx, scale, offset };
+    const conv = def.units && UNIT_CONVERSIONS[def.units][unit];
+    if (def.units && unit && !conv && !NATIVE_UNITS[def.units].includes(unit)) {
+      issues.push({ level: 'warning', code: 'unknown_unit',
+        message: `Unrecognised unit "${units[idx].trim()}" on "${headers[idx]}" — read as-is, values may be off.` });
+    }
+    const [scale, offset] = conv || [1, 0];
+    map[field] = { idx, scale, offset, header: headers[idx], unit: (units[idx] || '').trim() };
   }
   return map;
 }
 
-function parseAimCSV(text) {
+function parseAimCSV(text, issues = []) {
   const lines = text.split(/\r?\n/);
   const meta = {};
   let headers = null;
@@ -99,7 +110,9 @@ function parseAimCSV(text) {
       else {
         // Data header row
         headers = cells.map(h => h.trim());
-        colMap = resolveChannels(headers, parseCSVLine(lines[i + 1] || ''));
+        meta.units = parseCSVLine(lines[i + 1] || '');
+        meta.channelHeaders = headers;
+        colMap = resolveChannels(headers, meta.units, issues);
         // Skip units row + empty row
         dataStartLine = i + 3;
         break;
@@ -133,9 +146,85 @@ function parseAimCSV(text) {
     rows.push(row);
   }
 
+  // Distance: integrate GPS speed rather than trusting the logger's distance
+  // column — some exports scale it wrongly (a Rush SR file reads ~10.8× too
+  // long). Matches AiM's own "Distance on GPS Speed" to 0.1 m on correct files.
+  const loggerDist = rows.length ? rows[rows.length - 1].dist - rows[0].dist : 0;
+  for (let i = 0; i < rows.length; i++) {
+    rows[i].dist = i === 0 ? 0
+      : rows[i - 1].dist + (rows[i].speed + rows[i - 1].speed) / 2 / 3.6 * Math.max(0, rows[i].time - rows[i - 1].time);
+  }
+  const gpsDist = rows.length ? rows[rows.length - 1].dist : 0;
+  if (colMap.dist && gpsDist > 500 && Math.abs(loggerDist / gpsDist - 1) > 0.03) {
+    issues.push({ level: 'warning', code: 'distance_mismatch',
+      message: `The logger's distance channel is ${(loggerDist / gpsDist).toFixed(2)}× the GPS distance — using GPS distance instead.` });
+  }
+
+  // Percent channels that run far past 100 are raw sensor values, not % —
+  // drop them rather than chart nonsense (e.g. "Throttle Plates" 37–691).
+  for (const f of ['accelPos', 'throttle']) {
+    if (!colMap[f]) continue;
+    const v = rows.map(r => r[f]).sort((a, b) => a - b);
+    if (v[Math.floor(v.length * 0.95)] > 110) {
+      issues.push({ level: 'warning', code: 'percent_out_of_range',
+        message: `"${colMap[f].header}" is labelled ${colMap[f].unit || '%'} but reads up to ${Math.round(v[v.length - 1])} — not a percentage, so it was ignored.` });
+      delete colMap[f];
+      rows.forEach(r => { r[f] = 0; });
+    }
+  }
+
   // Fields this file actually logs (channels absent from the file read as 0)
   meta.channels = Object.keys(colMap);
   return { meta, rows };
+}
+
+// ── IMPORT CHECK ──────────────────────────────────────────────
+// Parses a file and reports whether we can use it. errors block the import;
+// warnings mean it imported but something looked off (and gets logged).
+const IMPORT_REQUIRED = { time: 'Time', speed: 'GPS Speed', lat: 'GPS Latitude', lon: 'GPS Longitude' };
+
+function checkImport(text) {
+  const issues = [];
+  const err  = (code, message) => issues.push({ level: 'error', code, message });
+  const warn = (code, message) => issues.push({ level: 'warning', code, message });
+
+  if (!/^\s*"?Format"?\s*,\s*"?AiM CSV File/m.test(text.slice(0, 2000))) {
+    warn('not_aim_format', 'File doesn\'t start with "Format, AiM CSV File" — expected a CSV export from AiM Race Studio.');
+  }
+  const parsed = parseAimCSV(text, issues);
+  if (!parsed) {
+    err('no_data_header', 'No telemetry table found (expected a header row starting "Time, GPS Speed, …"). Export the session from Race Studio as CSV.');
+    return { parsed: null, laps: [], issues };
+  }
+
+  const have = new Set(parsed.meta.channels);
+  const missing = Object.entries(IMPORT_REQUIRED).filter(([f]) => !have.has(f)).map(([, name]) => name);
+  if (missing.length) err('missing_channels', `Missing required channel${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}.`);
+  if (!parsed.rows.length) err('no_rows', 'The telemetry table has no data rows.');
+  if (!(parsed.meta.beaconMarkers || []).length) {
+    err('no_laps', 'No lap markers ("Beacon Markers") — the session needs a start/finish line set in Race Studio before exporting.');
+  }
+
+  const laps = issues.some(i => i.level === 'error') ? [] : extractLaps(parsed, 'check');
+  if (!issues.some(i => i.level === 'error') && !laps.some(l => !l.isOutLap && !l.isInLap)) {
+    err('no_timed_laps', 'No complete timed laps found between the lap markers.');
+  }
+
+  // Values no car produces usually mean a sensor/unit setup problem
+  const max = f => parsed.rows.reduce((m, r) => Math.max(m, r[f]), -Infinity);
+  if (have.has('speed') && max('speed') > 400) warn('implausible_speed', `GPS speed peaks at ${Math.round(max('speed'))} km/h — check the speed unit.`);
+  if (have.has('brake') && max('brake') > 300) warn('implausible_brake', `Brake pressure peaks at ${Math.round(max('brake'))} bar — the sensor's scaling may be wrong; braking detection still works.`);
+  if (have.has('latAcc') && max('latAcc') > 4) warn('implausible_g', `Lateral G peaks at ${max('latAcc').toFixed(1)} g — check the acceleration unit.`);
+
+  // Lap lengths should agree within a session
+  const timed = laps.filter(l => !l.isOutLap && !l.isInLap).map(l => l.lapDist).sort((a, b) => a - b);
+  if (timed.length >= 3) {
+    const mid = timed[timed.length >> 1];
+    const odd = timed.filter(d => Math.abs(d / mid - 1) > 0.1).length;
+    if (odd) warn('lap_length_spread', `${odd} of ${timed.length} laps differ from the typical lap length (${Math.round(mid)} m) by over 10% — possibly missed or extra lap markers.`);
+  }
+
+  return { parsed, laps, issues };
 }
 
 // sessionId = SHA-256 hex of full CSV (same key used in Storage path + Firestore).
