@@ -153,6 +153,92 @@ function detectCorners(data) {
   return corners;
 }
 
+// ── KNOWN-TRACK CORNERS ───────────────────────────────────────
+// On a track we have a corner map for (see KNOWN_TRACKS), each official
+// turn is located on the lap by its nearest GPS point, so turn numbers
+// stay stable no matter how the curvature detector splits or merges bends.
+
+const TRACK_MATCH_RADIUS_M = 40;   // max GPS offset to count a turn as found
+
+function nearestPointIdx(data, lat, lon) {
+  const cosLat = Math.cos(lat * Math.PI / 180);
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < data.length; i++) {
+    const p = data[i];
+    if (!p.lat || !p.lon) continue;
+    const dx = (p.lon - lon) * 111320 * cosLat;
+    const dy = (p.lat - lat) * 110540;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return { idx: best, offset: Math.sqrt(bestD) };
+}
+
+// Returns the known track this lap was driven on, or null.
+function findKnownTrack(data) {
+  if (!data?.some(p => p.lat && p.lon)) return null;
+  return KNOWN_TRACKS.find(track => {
+    const found = track.corners.filter(c =>
+      nearestPointIdx(data, c.lat, c.lon).offset <= TRACK_MATCH_RADIUS_M).length;
+    return found >= track.corners.length * 0.8;
+  }) || null;
+}
+
+// Corner objects with the same shape detectCorners() returns, plus id/label.
+function cornersForTrack(data, track) {
+  const located = track.corners
+    .map(c => ({ c, hit: nearestPointIdx(data, c.lat, c.lon) }))
+    .filter(({ hit }) => hit.idx >= 0 && hit.offset <= TRACK_MATCH_RADIUS_M)
+    .map(({ c, hit }) => ({ ...c, apexDist: data[hit.idx].dist }))
+    .sort((a, b) => a.apexDist - b.apexDist);
+  const lapEnd = data[data.length - 1].dist;
+
+  return located.map((c, i) => {
+    const prev = located[i - 1], next = located[i + 1];
+    // Window: up to 120 m before / 100 m after the apex, split halfway
+    // with neighbouring turns so back-to-back corners don't overlap.
+    const startDist = Math.max(c.apexDist - 120, prev ? (prev.apexDist + c.apexDist) / 2 : 0);
+    const endDist   = Math.min(c.apexDist + 100, next ? (c.apexDist + next.apexDist) / 2 : lapEnd);
+    const section = data.filter(p => p.dist >= startDist && p.dist <= endDist);
+    if (!section.length) return null;
+
+    const nearApex   = section.filter(p => Math.abs(p.dist - c.apexDist) <= 40);
+    const minSpeedPt = (nearApex.length ? nearApex : section).reduce((a, b) => a.speed < b.speed ? a : b);
+    let throttlePickupDist = minSpeedPt.dist;
+    for (let j = section.indexOf(minSpeedPt); j < section.length; j++) {
+      if (section[j].throttle > 8 || section[j].accelPos > 8) {
+        throttlePickupDist = section[j].dist; break;
+      }
+    }
+    return {
+      id: c.id,
+      label: `Turn ${c.id}`,
+      startDist,
+      endDist,
+      entrySpeed: section[0].speed,
+      minSpeed:   minSpeedPt.speed,
+      apexDist:   c.apexDist,          // where the turn is on this lap
+      minSpeedDist: minSpeedPt.dist,
+      exitSpeed:  section[section.length - 1].speed,
+      direction:  c.dir,
+      throttlePickupDist,
+      throttleDelay: Math.max(0, throttlePickupDist - minSpeedPt.dist),
+    };
+  }).filter(Boolean);
+}
+
+// Official turns on a known track, otherwise curvature-detected corners.
+function getLapCorners(data) {
+  const track = findKnownTrack(data);
+  return track ? cornersForTrack(data, track) : detectCorners(data);
+}
+
+// Same corner on another lap: by turn id on known tracks, else nearest start.
+function matchCorner(corner, corners) {
+  if (corner.id != null) return corners.find(c => c.id === corner.id) || null;
+  return corners.find(c => Math.abs(c.startDist - corner.startDist) < 200) || null;
+}
+
 function interpolateAt(data, dist) {
   if (!data.length) return null;
   if (dist <= data[0].dist) return { ...data[0] };

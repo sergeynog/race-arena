@@ -40,8 +40,8 @@ function buildCoachingPrompt(refLap, compLap) {
   const benchLap = userIsA ? compLap : refLap;
   const benchName = userIsA ? lapBDriver : lapADriver;
 
-  const userCorners  = detectCorners(userLap.data);
-  const benchCorners = detectCorners(benchLap.data);
+  const userCorners  = getLapCorners(userLap.data);
+  const benchCorners = getLapCorners(benchLap.data);
   const userBraking  = detectBrakingZones(userLap.data);
   const benchBraking = detectBrakingZones(benchLap.data);
 
@@ -84,8 +84,9 @@ function buildCoachingPrompt(refLap, compLap) {
   // Corners — YOU vs benchmark
   let cornerText = '';
   userCorners.forEach((uc, idx) => {
-    const bc = benchCorners.find(c => Math.abs(c.startDist - uc.startDist) < 150);
-    cornerText += `C${idx+1}(${uc.direction}) @${Math.round(uc.startDist)}m: YOU entry=${uc.entrySpeed.toFixed(0)} apex=${uc.minSpeed.toFixed(0)} exit=${uc.exitSpeed.toFixed(0)} throt+${uc.throttleDelay.toFixed(0)}m`;
+    const bc = matchCorner(uc, benchCorners);
+    const name = uc.label || `C${idx+1}`;
+    cornerText += `${name}(${uc.direction}) @${Math.round(uc.apexDist)}m: YOU entry=${uc.entrySpeed.toFixed(0)} apex=${uc.minSpeed.toFixed(0)} exit=${uc.exitSpeed.toFixed(0)} throt+${uc.throttleDelay.toFixed(0)}m`;
     if (bc) {
       cornerText += ` | ${benchName} entry=${bc.entrySpeed.toFixed(0)} apex=${bc.minSpeed.toFixed(0)} exit=${bc.exitSpeed.toFixed(0)} throt+${bc.throttleDelay.toFixed(0)}m\n`;
     } else {

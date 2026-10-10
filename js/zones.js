@@ -503,25 +503,44 @@ function buildCornerCoachingTip(zone) {
 // ── MASTER ZONE RENDERER ───────────────────────────────────
 function renderAndDrawZones(refLap, compLap) {
   const BRAKE_CTX = 25;
+  const MIN_BRAKE_BAR = 5;
+  const MAX_BRAKE_SHIFT_M = 80;
   const EXIT_CTX  = 45;
 
-  const refCorners  = detectCorners(refLap.data);
-  const compCorners = detectCorners(compLap.data);
+  const refCorners  = getLapCorners(refLap.data);
+  const compCorners = getLapCorners(compLap.data);
+  const knownTrack  = findKnownTrack(refLap.data);
   const refBraking  = detectBrakingZones(refLap.data);
   const compBraking = detectBrakingZones(compLap.data);
 
   const corners = refCorners.map((rc, idx) => {
-    const cc = compCorners.find(c => Math.abs(c.startDist - rc.startDist) < 200);
-    const rb = refBraking.find(b => b.endDist >= rc.startDist - 60 && b.startDist < rc.startDist + 100);
-    const cb = rb ? compBraking.find(b => Math.abs(b.startDist - rb.startDist) < 220) : null;
+    const cc = matchCorner(rc, compCorners);
+    // Braking zone feeding this corner: starts before the apex, ends within 150 m of it
+    // Ignore throttle lifts (decel with ~0 bar) when the lap logs brake pressure
+    const brakesFor = (zones, c) => {
+      if (!c) return [];
+      const near = zones.filter(b => b.startDist < c.apexDist + 10 && b.endDist > c.apexDist - 150);
+      const pressed = near.filter(b => b.peakBrake >= MIN_BRAKE_BAR);
+      return pressed.length ? pressed : near;
+    };
+    const rb = brakesFor(refBraking, rc).pop();
+    // Lap B's zone with the closest brake point, so shared braking areas
+    // (e.g. one stop for two linked turns) compare like with like
+    const cbNearest = rb ? brakesFor(compBraking, cc).reduce((best, z) =>
+      !best || Math.abs(z.startDist - rb.startDist) < Math.abs(best.startDist - rb.startDist) ? z : best, null) : null;
+    // Brake points this far apart are different stops (e.g. one stop vs two
+    // through 10–11), not the same stop made later — don't compare them.
+    const cb = cbNearest && Math.abs(cbNearest.startDist - rb.startDist) <= MAX_BRAKE_SHIFT_M ? cbNearest : null;
 
-    const distStart = rb ? rb.startDist - BRAKE_CTX : rc.startDist - 80;
-    const distEnd   = rc.endDist + EXIT_CTX;
+    const distStart = rc.id != null
+      ? Math.min(rc.startDist, rb ? rb.startDist - BRAKE_CTX : rc.startDist)
+      : (rb ? rb.startDist - BRAKE_CTX : rc.startDist - 80);
+    const distEnd   = rc.endDist + (rc.id != null ? 20 : EXIT_CTX);
 
     return {
       type: 'corner',
-      label: `Corner ${CLUB_MOTORSPORTS_CORNERS[idx] ?? (idx + 1)}`,
-      dist: Math.round(rc.startDist),
+      label: rc.label || `Corner ${idx + 1}`,
+      dist: Math.round(rc.apexDist),
       direction: rc.direction,
       distStart, distEnd,
       ref: rc, comp: cc,
@@ -539,7 +558,7 @@ function renderAndDrawZones(refLap, compLap) {
     <div class="zone-analysis-section">
       <div class="zone-analysis-header">
         <span class="zone-analysis-title">Corner-by-corner analysis</span>
-        ${CLUB_MOTORSPORTS_SKIPPED.length ? `<span class="zone-skipped-note">Corners ${CLUB_MOTORSPORTS_SKIPPED.join(', ')} not shown — taken flat-out, no measurable telemetry delta</span>` : ''}
+        ${knownTrack ? `<span class="zone-skipped-note">${corners.length} turns · numbering follows the official ${knownTrack.name} track map</span>` : ''}
         <div class="zone-legend-pills">
           <div class="zone-legend-pill"><div style="width:20px;height:4px;background:${LAP_A_COLOR};border-radius:2px;display:inline-block;"></div>&nbsp;Lap A</div>
           <div class="zone-legend-pill"><div style="width:16px;height:3px;background:${LAP_B_COLOR};border-radius:2px;display:inline-block;"></div>&nbsp;Lap B (offset)</div>
