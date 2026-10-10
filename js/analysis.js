@@ -204,9 +204,11 @@ function cornersForTrack(data, track) {
 
     const nearApex   = section.filter(p => Math.abs(p.dist - c.apexDist) <= 40);
     const minSpeedPt = (nearApex.length ? nearApex : section).reduce((a, b) => a.speed < b.speed ? a : b);
-    let throttlePickupDist = minSpeedPt.dist;
+    // Committed throttle (≥50% pedal/throttle) — drivers often hold a little through the turn
+    // null when committed throttle doesn't come within this section
+    let throttlePickupDist = null;
     for (let j = section.indexOf(minSpeedPt); j < section.length; j++) {
-      if (section[j].throttle > 8 || section[j].accelPos > 8) {
+      if (Math.max(section[j].throttle, section[j].accelPos) >= 50) {
         throttlePickupDist = section[j].dist; break;
       }
     }
@@ -222,7 +224,7 @@ function cornersForTrack(data, track) {
       exitSpeed:  section[section.length - 1].speed,
       direction:  c.dir,
       throttlePickupDist,
-      throttleDelay: Math.max(0, throttlePickupDist - minSpeedPt.dist),
+      throttleDelay: throttlePickupDist == null ? null : Math.max(0, throttlePickupDist - minSpeedPt.dist),
     };
   }).filter(Boolean);
 }

@@ -199,6 +199,7 @@ async function ensureLapData(lap) {
     const match  = laps[lapIdx];
     if (match) {
       lap.data        = match.data;
+      lap.channels    = match.channels;
       lap.timeSeconds = match.timeSeconds;
       lap.timeStr     = match.timeStr;
       lap.lapNumber   = match.lapNumber;

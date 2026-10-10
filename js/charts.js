@@ -10,7 +10,7 @@ function destroyCharts() {
   state.charts = {};
 }
 
-function makeChartConfig(label, unit, datasets) {
+function makeChartConfig(label, unit, datasets, decimals = 1) {
   return {
     type: 'line',
     data: { datasets },
@@ -30,7 +30,7 @@ function makeChartConfig(label, unit, datasets) {
           bodyColor: '#111111',
           callbacks: {
             title: items => `${Math.round(items[0].parsed.x)} m`,
-            label: item => ` ${item.dataset.label}: ${item.parsed.y.toFixed(1)} ${unit}`,
+            label: item => ` ${item.dataset.label}: ${item.parsed.y.toFixed(decimals)} ${unit}`,
           },
         },
       },
@@ -76,6 +76,18 @@ function buildDatasets(field, lapObjects) {
       borderDash: isA ? [] : [6, 3],
     };
   });
+}
+
+// Datasets from a derived per-sample series (e.g. combined G) or a raw field
+function buildSeriesDatasets(lapObjects, seriesFor) {
+  return lapObjects.map(({ lap, isA }) => ({
+    label: `${isA ? 'Lap A' : 'Lap B'} · ${lap.timeStr || lap.lapTime || '?'}`,
+    data: seriesFor(lap),
+    borderColor: isA ? LAP_A_COLOR : LAP_B_COLOR,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderDash: isA ? [] : [6, 3],
+  }));
 }
 
 // Hover-sync plugin — mousemove on any chart updates the track map crosshair + all sibling charts
@@ -161,19 +173,29 @@ function renderCharts() {
     return;
   }
 
+  const pair = lapA?.data && lapB?.data;
+  const logs = field => [lapA, lapB].some(l => l?.data && hasChannel(l, field));
+  const hasAlt = logs('alt');
+  const hasBrake = logs('brake');
+  const hasThrottle = logs('throttle') || logs('accelPos');
+
   grid.innerHTML = `
+    ${pair ? `<div class="chart-card wide">
+      <div class="chart-title">Time gap <span class="chart-unit">Lap B vs Lap A · above zero = Lap B behind</span></div>
+      <div class="chart-container"><canvas id="chartDelta"></canvas></div>
+    </div>` : ''}
     <div class="chart-card wide">
       <div class="chart-title">Speed <span class="chart-unit">km/h</span></div>
       <div class="chart-container"><canvas id="chartSpeed"></canvas></div>
     </div>
-    <div class="chart-card">
+    ${hasBrake ? `<div class="chart-card">
       <div class="chart-title">Brake Pressure <span class="chart-unit">bar</span></div>
       <div class="chart-container"><canvas id="chartBrake"></canvas></div>
-    </div>
-    <div class="chart-card">
+    </div>` : ''}
+    ${hasThrottle ? `<div class="chart-card">
       <div class="chart-title">Throttle <span class="chart-unit">%</span></div>
       <div class="chart-container"><canvas id="chartThrottle"></canvas></div>
-    </div>
+    </div>` : ''}
     <div class="chart-card">
       <div class="chart-title">Lateral G <span class="chart-unit">g</span></div>
       <div class="chart-container"><canvas id="chartLatG"></canvas></div>
@@ -182,6 +204,14 @@ function renderCharts() {
       <div class="chart-title">Longitudinal G <span class="chart-unit">g</span></div>
       <div class="chart-container"><canvas id="chartLonG"></canvas></div>
     </div>
+    <div class="chart-card">
+      <div class="chart-title">Combined G <span class="chart-unit">g · total grip in use</span></div>
+      <div class="chart-container"><canvas id="chartCombG"></canvas></div>
+    </div>
+    ${hasAlt ? `<div class="chart-card">
+      <div class="chart-title">Elevation <span class="chart-unit">m</span></div>
+      <div class="chart-container"><canvas id="chartAlt"></canvas></div>
+    </div>` : ''}
   `;
 
   destroyCharts();
@@ -206,4 +236,30 @@ function renderCharts() {
     const ctx = canvas.getContext('2d');
     state.charts[id] = new Chart(ctx, makeChartConfig(field, unit, datasets));
   });
+
+  const derivedCharts = [
+    ['chartCombG', 'g', 2, lap => seriesOf(lap, null, 500, lapDerived(lap).combG)],
+    ['chartAlt',   'm', 1, lap => seriesOf(lap, 'alt', 500)],
+  ];
+  derivedCharts.forEach(([id, unit, dec, seriesFor]) => {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    state.charts[id] = new Chart(canvas.getContext('2d'),
+      makeChartConfig(id, unit, buildSeriesDatasets(lapObjects, seriesFor), dec));
+  });
+
+  const deltaCanvas = document.getElementById('chartDelta');
+  if (deltaCanvas) {
+    const cfg = makeChartConfig('delta', 's', [{
+      label: 'Lap B vs A',
+      data: deltaTrace(lapA, lapB),
+      borderColor: '#111111',
+      backgroundColor: 'rgba(218,41,28,0.10)',
+      borderWidth: 2,
+      fill: 'origin',
+    }], 3);
+    cfg.options.scales.y.ticks.callback = v => `${v > 0 ? '+' : ''}${v.toFixed(1)}s`;
+    cfg.options.scales.y.grid.color = ctx => ctx.tick.value === 0 ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.06)';
+    state.charts.chartDelta = new Chart(deltaCanvas.getContext('2d'), cfg);
+  }
 }

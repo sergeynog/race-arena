@@ -18,6 +18,65 @@ function parseCSVLine(line) {
   return result;
 }
 
+// ── CHANNEL MATCHING ──────────────────────────────────────────
+// Channel names vary by car and logger setup (ECU-provided vs manual
+// sensors), so each field lists name patterns in priority order. A column
+// is used for at most one field. `units` converts to km/h, m, bar, g, °C.
+const CHANNEL_DEFS = {
+  time:      { names: [/^Time$/i] },
+  speed:     { names: [/^GPS Speed$/i, /^Speed$/i], units: 'speed' },
+  latAcc:    { names: [/^GPS LatAcc$/i], units: 'acc' },
+  lonAcc:    { names: [/^GPS LonAcc$/i], units: 'acc' },
+  lat:       { names: [/^GPS Latitude$/i] },
+  lon:       { names: [/^GPS Longitude$/i] },
+  dist:      { names: [/^Distance on GPS Speed$/i, /^Distance$/i], units: 'length' },
+  accelPos:  { names: [/^ACCEL POS$/i, /^PPS$/i, /pedal/i, /^Accel(erator)?[ _]?Pos/i] },
+  throttle:  { names: [/^THROTTLE POS$/i, /^TPS$/i, /^Throttle([ _]?Pos(ition)?)?$/i, /throttle/i] },
+  brake:     { names: [/^BRAKE PRESS(URE)?([ _]?F(RONT)?)?$/i, /brake.*press/i, /^Brk[ _]?Pres/i], units: 'pressure' },
+  steer:     { names: [/^STEER ANGLE$/i, /steer/i] },
+  rpm:       { names: [/^RPM dup 2$/i, /^RPM dup 1$/i, /^RPM$/i, /^Engine[ _]?Speed$/i] },
+  imuLonAcc: { names: [/^InlineAcc$/i], units: 'acc' },
+  imuLatAcc: { names: [/^LateralAcc$/i], units: 'acc' },
+  vertAcc:   { names: [/^VerticalAcc$/i], units: 'acc' },
+  yawRate:   { names: [/^YawRate$/i] },
+  alt:       { names: [/^GPS Altitude$/i], units: 'length' },
+  slope:     { names: [/^GPS Slope$/i] },
+  radius:    { names: [/^GPS Radius$/i], units: 'length' },
+  wheelFL:   { names: [/(wheel|whl|wsp).*[\s_.-]F[ _]?L$/i, /(wheel|whl)[a-z]*FL$/i, /^(WS|WSS)[ _]?FL$/i], units: 'speed' },
+  wheelFR:   { names: [/(wheel|whl|wsp).*[\s_.-]F[ _]?R$/i, /(wheel|whl)[a-z]*FR$/i, /^(WS|WSS)[ _]?FR$/i], units: 'speed' },
+  wheelRL:   { names: [/(wheel|whl|wsp).*[\s_.-]R[ _]?L$/i, /(wheel|whl)[a-z]*RL$/i, /^(WS|WSS)[ _]?RL$/i], units: 'speed' },
+  wheelRR:   { names: [/(wheel|whl|wsp).*[\s_.-]R[ _]?R$/i, /(wheel|whl)[a-z]*RR$/i, /^(WS|WSS)[ _]?RR$/i], units: 'speed' },
+  coolant:   { names: [/coolant/i, /water[ _]?temp/i, /^ECT$/i], units: 'temp' },
+  intakeAir: { names: [/intk|intake/i, /^IAT$/i], units: 'temp' },
+};
+
+// [scale, offset] to the app's units, keyed by the unit text in the CSV
+const UNIT_CONVERSIONS = {
+  speed:    { mph: [1.609344, 0], 'm/s': [3.6, 0] },
+  length:   { ft: [0.3048, 0], km: [1000, 0], mi: [1609.344, 0] },
+  pressure: { psi: [1 / 14.5038, 0], kpa: [0.01, 0], mpa: [10, 0] },
+  acc:      { 'm/s2': [1 / 9.80665, 0], 'm/s^2': [1 / 9.80665, 0], 'm/s²': [1 / 9.80665, 0] },
+  temp:     { f: [5 / 9, -32 * 5 / 9], '°f': [5 / 9, -32 * 5 / 9] },
+};
+
+function resolveChannels(headers, units) {
+  const used = new Set();
+  const map = {};
+  for (const [field, def] of Object.entries(CHANNEL_DEFS)) {
+    let idx = -1;
+    for (const re of def.names) {
+      idx = headers.findIndex((h, i) => !used.has(i) && re.test(h));
+      if (idx >= 0) break;
+    }
+    if (idx < 0) continue;
+    used.add(idx);
+    const unit = (units[idx] || '').trim().toLowerCase();
+    const [scale, offset] = (def.units && UNIT_CONVERSIONS[def.units][unit]) || [1, 0];
+    map[field] = { idx, scale, offset };
+  }
+  return map;
+}
+
 function parseAimCSV(text) {
   const lines = text.split(/\r?\n/);
   const meta = {};
@@ -40,7 +99,7 @@ function parseAimCSV(text) {
       else {
         // Data header row
         headers = cells.map(h => h.trim());
-        headers.forEach((h, idx) => { colMap[h] = idx; });
+        colMap = resolveChannels(headers, parseCSVLine(lines[i + 1] || ''));
         // Skip units row + empty row
         dataStartLine = i + 3;
         break;
@@ -58,34 +117,24 @@ function parseAimCSV(text) {
 
   if (dataStartLine < 0 || !headers) return null;
 
-  // Helper to get column value
-  const col = (cells, name) => {
-    const idx = colMap[name];
-    return idx !== undefined ? parseFloat(cells[idx]) || 0 : 0;
-  };
-
+  const fields = Object.keys(CHANNEL_DEFS);
   const rows = [];
   for (let i = dataStartLine; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
     const cells = parseCSVLine(line);
     if (cells.length < 5) continue;
-    rows.push({
-      time:     col(cells, 'Time'),
-      speed:    col(cells, 'GPS Speed'),
-      latAcc:   col(cells, 'GPS LatAcc'),
-      lonAcc:   col(cells, 'GPS LonAcc'),
-      lat:      col(cells, 'GPS Latitude'),
-      lon:      col(cells, 'GPS Longitude'),
-      brake:    Math.max(0, col(cells, 'BRAKE PRESS')),
-      throttle: col(cells, 'THROTTLE POS'),
-      accelPos: col(cells, 'ACCEL POS'),
-      steer:    col(cells, 'STEER ANGLE'),
-      rpm:      col(cells, 'RPM dup 2') || col(cells, 'RPM dup 1'),
-      dist:     col(cells, 'Distance on GPS Speed'),
-    });
+    const row = {};
+    for (const f of fields) {
+      const c = colMap[f];
+      row[f] = c ? (parseFloat(cells[c.idx]) || 0) * c.scale + c.offset : 0;
+    }
+    row.brake = Math.max(0, row.brake);
+    rows.push(row);
   }
 
+  // Fields this file actually logs (channels absent from the file read as 0)
+  meta.channels = Object.keys(colMap);
   return { meta, rows };
 }
 
@@ -128,6 +177,7 @@ function extractLaps(session, sessionId) {
       timeSeconds,
       data,
       lapDist: data[data.length - 1]?.dist || 0,
+      channels: meta.channels || [],
       isOutLap: i === 0,
       isInLap: i === boundaries.length - 2 && boundaries.length > 2,
     });

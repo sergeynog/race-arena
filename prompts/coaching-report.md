@@ -16,6 +16,7 @@ Benchmark: {{BENCH_NAME}} — {{BENCH_TIME}} [Lap {{BENCH_LAP_NUM}} · {{BENCH_R
 {{BRAKE_ZONES}}
 
 === CORNERS ({{CORNER_COUNT}}) ===
+Key: t = time through the corner section (s). peakG = peak combined lateral+longitudinal g. grip = peakG as % of that lap's near-maximum. brakeSlip = metres with a wheel ≥12% slower than ground speed while braking (a lock-up, or ABS working on cars that have it — don't assume ABS is fitted). wheelspin = metres with an axle ≥6% faster than ground speed under power. throttleCut = metres where electronics held throttle well below the pedal (traction/stability control). steer = steering degrees per g of cornering; more = more understeer. Fields are omitted when the car doesn't log the channel.
 {{CORNER_ANALYSIS}}
 
 === COACHING REPORT ===

@@ -86,9 +86,21 @@ function buildCoachingPrompt(refLap, compLap) {
   userCorners.forEach((uc, idx) => {
     const bc = matchCorner(uc, benchCorners);
     const name = uc.label || `C${idx+1}`;
-    cornerText += `${name}(${uc.direction}) @${Math.round(uc.apexDist)}m: YOU entry=${uc.entrySpeed.toFixed(0)} apex=${uc.minSpeed.toFixed(0)} exit=${uc.exitSpeed.toFixed(0)} throt+${uc.throttleDelay.toFixed(0)}m`;
+    // Section time, grip and car-behaviour metrics (only those this lap logs)
+    const extra = (lap, c) => {
+      const m = cornerMetrics(lap, { start: c.startDist, end: c.endDist }, c, null);
+      if (!m) return '';
+      const parts = [`t=${m.time.toFixed(2)}s`, `peakG=${m.peakG.toFixed(2)}`];
+      if (m.gripUsed != null) parts.push(`grip=${Math.round(m.gripUsed * 100)}%`);
+      if (m.lockupMetres) parts.push(`brakeSlip=${m.lockupMetres.toFixed(0)}m`);
+      if (m.spinMetres) parts.push(`wheelspin=${m.spinMetres.toFixed(0)}m`);
+      if (m.cutMetres) parts.push(`throttleCut=${m.cutMetres.toFixed(0)}m`);
+      if (m.steerPerG != null) parts.push(`steer=${m.steerPerG.toFixed(0)}deg/g`);
+      return ' ' + parts.join(' ');
+    };
+    cornerText += `${name}(${uc.direction}) @${Math.round(uc.apexDist)}m: YOU entry=${uc.entrySpeed.toFixed(0)} apex=${uc.minSpeed.toFixed(0)} exit=${uc.exitSpeed.toFixed(0)} throt+${uc.throttleDelay != null ? uc.throttleDelay.toFixed(0) + 'm' : 'n/a'}${extra(userLap, uc)}`;
     if (bc) {
-      cornerText += ` | ${benchName} entry=${bc.entrySpeed.toFixed(0)} apex=${bc.minSpeed.toFixed(0)} exit=${bc.exitSpeed.toFixed(0)} throt+${bc.throttleDelay.toFixed(0)}m\n`;
+      cornerText += ` | ${benchName} entry=${bc.entrySpeed.toFixed(0)} apex=${bc.minSpeed.toFixed(0)} exit=${bc.exitSpeed.toFixed(0)} throt+${bc.throttleDelay != null ? bc.throttleDelay.toFixed(0) + 'm' : 'n/a'}${extra(benchLap, bc)}\n`;
     } else {
       cornerText += ` | ${benchName}: no match\n`;
     }
@@ -134,6 +146,7 @@ ${speedDeltaText}
 === BRAKING (${userBraking.length}) ===
 ${brakeText || 'None detected'}
 === CORNERS (${userCorners.length}) ===
+Key: t = time through the corner section (s). peakG = peak combined lateral+longitudinal g. grip = peakG as % of that lap's near-maximum. brakeSlip = metres with a wheel ≥12% slower than ground speed while braking (a lock-up, or ABS working on cars that have it — don't assume ABS is fitted). wheelspin = metres with an axle ≥6% faster than ground speed under power. throttleCut = metres where electronics held throttle well below the pedal (traction/stability control). steer = steering degrees per g of cornering; more = more understeer. Fields are omitted when the car doesn't log the channel.
 ${cornerText || 'None detected'}
 Give: Executive Summary, Top 3 Improvements (ranked by time gain), Braking Analysis, Corner & Throttle, One Focus Point.`;
   }
